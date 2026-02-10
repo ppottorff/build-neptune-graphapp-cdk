@@ -1,8 +1,0 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Skeleton = Skeleton;
-const utils_1 = require("@/lib/utils");
-function Skeleton({ className, ...props }) {
-    return (<div className={(0, utils_1.cn)("animate-pulse rounded-md bg-muted", className)} {...props}/>);
-}
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tlbGV0b24uanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJza2VsZXRvbi50c3giXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFjUyw0QkFBUTtBQWRqQix1Q0FBZ0M7QUFFaEMsU0FBUyxRQUFRLENBQUMsRUFDaEIsU0FBUyxFQUNULEdBQUcsS0FBSyxFQUM2QjtJQUNyQyxPQUFPLENBQ0wsQ0FBQyxHQUFHLENBQ0YsU0FBUyxDQUFDLENBQUMsSUFBQSxVQUFFLEVBQUMsbUNBQW1DLEVBQUUsU0FBUyxDQUFDLENBQUMsQ0FDOUQsSUFBSSxLQUFLLENBQUMsRUFDVixDQUNILENBQUE7QUFDSCxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgY24gfSBmcm9tIFwiQC9saWIvdXRpbHNcIlxuXG5mdW5jdGlvbiBTa2VsZXRvbih7XG4gIGNsYXNzTmFtZSxcbiAgLi4ucHJvcHNcbn06IFJlYWN0LkhUTUxBdHRyaWJ1dGVzPEhUTUxEaXZFbGVtZW50Pikge1xuICByZXR1cm4gKFxuICAgIDxkaXZcbiAgICAgIGNsYXNzTmFtZT17Y24oXCJhbmltYXRlLXB1bHNlIHJvdW5kZWQtbWQgYmctbXV0ZWRcIiwgY2xhc3NOYW1lKX1cbiAgICAgIHsuLi5wcm9wc31cbiAgICAvPlxuICApXG59XG5cbmV4cG9ydCB7IFNrZWxldG9uIH1cbiJdfQ==

@@ -1,3 +1,0 @@
-export declare const getRelationName = "\n  query getRelationName($type: String!, $name: String!, $value: String!) {\n    getRelationName(type: $type, name: $name, value: $value) {\n      name\n    }\n  }\n";
-export declare const getProfile = "\n  query getProfile($type: String!, $name: String!, $value: String!) {\n    getProfile(type: $type, name: $name, value: $value) {\n      search_name\n      usage\n      belong_to\n      authored_by\n      affiliated_with\n      people\n      made_by\n    }\n  }\n";
-export declare const getGraph = "\n  query getGraph($type: String!, $value: String!) {\n    getGraph(type: $type, value: $value) {\n      nodes {\n        id\n        label\n      }\n      links {\n        source\n        target\n        value\n      }\n    }\n  }\n";
