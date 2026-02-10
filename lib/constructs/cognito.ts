@@ -16,7 +16,7 @@ import {
 import {
   IdentityPool,
   UserPoolAuthenticationProvider,
-} from "@aws-cdk/aws-cognito-identitypool-alpha";
+} from "aws-cdk-lib/aws-cognito-identitypool";
 import { NagSuppressions } from "cdk-nag";
 
 export interface CognitoProps {

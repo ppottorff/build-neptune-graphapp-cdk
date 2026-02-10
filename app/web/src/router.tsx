@@ -5,8 +5,7 @@ import { routeTree } from "./routeTree.gen.js";
 export const router = createRouter({
   routeTree,
   context: {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
+    // @ts-ignore
     auth: undefined,
   },
 });

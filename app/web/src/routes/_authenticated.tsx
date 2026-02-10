@@ -5,8 +5,7 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context }) => {
     if (!context.auth.isAuth) {
       throw redirect({
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
+        // @ts-ignore
         to: "/signin",
         throw: true,
         // search: {
