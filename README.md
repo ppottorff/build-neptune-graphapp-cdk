@@ -14,9 +14,38 @@
 - Docker
 - Stored `vertex.csv` and `edge.csv` files in Amazon S3 in your AWS Account as [the post](https://aws.amazon.com/blogs/database/build-a-graph-application-with-amazon-neptune-and-aws-amplify/) mentioned
 
-## Setup
+## Deployment
 
-### Create a config file as `config.ts`
+### Option 1: Automated CI/CD Deployment (Recommended)
+
+This project includes a GitHub Actions workflow that automatically deploys the application to AWS when code is pushed to the `main` branch.
+
+#### Prerequisites for CI/CD
+
+1. **AWS OIDC Configuration**: An IAM OIDC identity provider and role must be configured in your AWS account with:
+   - Trust relationship to the GitHub repository: `ppottorff/build-neptune-graphapp-cdk`
+   - Permissions for CDK deployments (CloudFormation, IAM, S3, Neptune, VPC, Lambda, AppSync, Cognito, CloudFront, WAF)
+   - Role name: `GitHubActionsDeployRole`
+
+2. **CDK Bootstrap**: Your AWS account must be bootstrapped for CDK:
+   ```bash
+   npx cdk bootstrap aws://384492676078/us-east-1
+   ```
+
+3. **Configuration**: Ensure `config.js` is properly configured with your settings.
+
+#### How CI/CD Works
+
+When you push to the `main` branch:
+1. **Backend Deployment**: Deploys Neptune, VPC, API (AppSync + Lambda), and Cognito
+2. **Frontend Deployment**: Generates environment variables and deploys React app to S3/CloudFront
+3. **Outputs**: Displays CloudFront URL and other key endpoints in the GitHub Actions summary
+
+The workflow uses AWS OIDC authentication (no long-term credentials stored in GitHub).
+
+### Option 2: Manual Deployment
+
+#### Create a config file as `config.ts`
 
 Copy `config.sample.ts` and paste the file as `config.ts`. Then modify the `baseConfig` properties as your enviroment and requirements. For the reference, `baseConfig` in the sample file as follows:
 
@@ -37,7 +66,7 @@ const baseConfig = {
 
 See the [config doc](docs/config.md) if you check the properties in detail.
 
-## Deployment
+#### Manual Deployment Steps
 
 1. Install the dependencies
 
@@ -136,6 +165,93 @@ End streaming response%
   - Destroy the frontend stack with AWS CDK
 - `npm run generateEnv`
   - Generate the environment variables in `.env` for frontend.
+
+## CI/CD Setup Guide
+
+### Setting up AWS OIDC for GitHub Actions
+
+To enable automated deployments via GitHub Actions, you need to configure AWS OIDC authentication:
+
+#### 1. Create OIDC Identity Provider in AWS
+
+```bash
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com \
+  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+```
+
+#### 2. Create IAM Role for GitHub Actions
+
+Create a role with the following trust policy (replace `<ACCOUNT_ID>` and `<REPO_OWNER>/<REPO_NAME>`):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:<REPO_OWNER>/<REPO_NAME>:*"
+        }
+      }
+    }
+  ]
+}
+```
+
+#### 3. Attach Required Policies
+
+The role needs permissions for:
+- CloudFormation (full access for stack operations)
+- CDK operations (S3, SSM for CDK assets)
+- Neptune, VPC, EC2 (for infrastructure)
+- Lambda, AppSync, Cognito (for API and auth)
+- S3, CloudFront, WAF (for frontend)
+- IAM (for creating service roles)
+
+Example managed policies:
+- `PowerUserAccess` (recommended for simplicity)
+- Or create custom policies with specific permissions
+
+#### 4. Update Workflow Configuration
+
+If your role name is different from `GitHubActionsDeployRole`, update `.github/workflows/deploy.yml`:
+
+```yaml
+- name: Configure AWS credentials
+  uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/YourRoleName
+    aws-region: ${{ env.AWS_REGION }}
+```
+
+### Troubleshooting CI/CD
+
+#### Deployment fails with "AssumeRole" error
+- Verify the OIDC provider is configured correctly
+- Check the trust policy includes the correct repository
+- Ensure the role has necessary permissions
+
+#### CDK Bootstrap error
+- Run `npx cdk bootstrap aws://<ACCOUNT_ID>/us-east-1` manually
+- Verify the role has permissions to create CDK bootstrap resources
+
+#### Frontend build fails
+- Check that `pnpm` is installed in the workflow (should be automatic)
+- Verify `app/web/.env` file is generated correctly from backend outputs
+
+#### Missing outputs after deployment
+- Ensure backend deployment completes successfully before frontend
+- Check `cdk-infra.json` file is created and uploaded as artifact
 
 ## Security
 
