@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const react_1 = require("react");
+const client_1 = require("react-dom/client");
+const App_js_1 = require("./App.js");
+require("./index.css");
+client_1.default.createRoot(document.getElementById("root")).render(<react_1.default.StrictMode>
+    <App_js_1.default />
+  </react_1.default.StrictMode>);
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIm1haW4udHN4Il0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7O0FBQUEsaUNBQTBCO0FBQzFCLDZDQUF3QztBQUN4QyxxQ0FBMkI7QUFDM0IsdUJBQXFCO0FBRXJCLGdCQUFRLENBQUMsVUFBVSxDQUFDLFFBQVEsQ0FBQyxjQUFjLENBQUMsTUFBTSxDQUFFLENBQUMsQ0FBQyxNQUFNLENBQzFELENBQUMsZUFBSyxDQUFDLFVBQVUsQ0FDZjtJQUFBLENBQUMsZ0JBQUcsQ0FBQyxBQUFELEVBQ047RUFBQSxFQUFFLGVBQUssQ0FBQyxVQUFVLENBQUMsQ0FDcEIsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tIFwicmVhY3RcIjtcbmltcG9ydCBSZWFjdERPTSBmcm9tIFwicmVhY3QtZG9tL2NsaWVudFwiO1xuaW1wb3J0IEFwcCBmcm9tIFwiLi9BcHAuanNcIjtcbmltcG9ydCBcIi4vaW5kZXguY3NzXCI7XG5cblJlYWN0RE9NLmNyZWF0ZVJvb3QoZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoXCJyb290XCIpISkucmVuZGVyKFxuICA8UmVhY3QuU3RyaWN0TW9kZT5cbiAgICA8QXBwIC8+XG4gIDwvUmVhY3QuU3RyaWN0TW9kZT5cbik7XG4iXX0=
