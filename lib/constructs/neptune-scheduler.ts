@@ -73,7 +73,7 @@ export class NeptuneScheduler extends Construct {
           NEPTUNE_CLUSTER_ID: clusterIdentifier,
         },
         bundling: {
-          externalModules: [],        // bundle the SDK
+          externalModules: ["@aws-sdk/*"],  // use SDK v3 from Lambda runtime
           minify: true,
           sourceMap: true,
         },
