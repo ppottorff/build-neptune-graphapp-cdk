@@ -10,6 +10,7 @@ import {
   aws_scheduler,
 } from "aws-cdk-lib";
 import * as neptune from "@aws-cdk/aws-neptune-alpha";
+import { NagSuppressions } from "cdk-nag";
 import { Construct } from "constructs";
 import * as path from "path";
 
@@ -57,7 +58,7 @@ export class NeptuneScheduler extends Construct {
       this,
       "neptune-scheduler-fn",
       {
-        runtime: aws_lambda.Runtime.NODEJS_20_X,
+        runtime: aws_lambda.Runtime.NODEJS_22_X,
         entry: path.join(
           __dirname,
           "..",
@@ -100,6 +101,40 @@ export class NeptuneScheduler extends Construct {
       assumedBy: new aws_iam.ServicePrincipal("scheduler.amazonaws.com"),
     });
     schedulerFn.grantInvoke(schedulerRole);
+
+    // -----------------------------------------------------------------------
+    // cdk-nag suppressions
+    // -----------------------------------------------------------------------
+    NagSuppressions.addResourceSuppressions(
+      schedulerFn,
+      [
+        {
+          id: "AwsSolutions-IAM4",
+          reason:
+            "AWSLambdaBasicExecutionRole is required for CloudWatch Logs access",
+          appliesTo: [
+            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          ],
+        },
+        {
+          id: "AwsSolutions-L1",
+          reason: "NODEJS_22_X is the latest supported runtime at deploy time",
+        },
+      ],
+      true
+    );
+
+    NagSuppressions.addResourceSuppressions(
+      schedulerRole,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason:
+            "Wildcard on Lambda ARN version is required by grantInvoke for EventBridge Scheduler",
+        },
+      ],
+      true
+    );
 
     // -----------------------------------------------------------------------
     // Schedules (timezone-aware via EventBridge Scheduler)
