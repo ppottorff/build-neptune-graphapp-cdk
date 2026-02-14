@@ -145,6 +145,10 @@ export class NeptuneNetworkStack extends Stack {
         reason: "Wildcard permissions required for CDK managed resources",
         appliesTo: ["Resource::*"],
       },
+      {
+        id: "AwsSolutions-L1",
+        reason: "NODEJS_22_X is the latest supported runtime at deploy time - CDK managed resource",
+      },
     ]);
   }
 }
