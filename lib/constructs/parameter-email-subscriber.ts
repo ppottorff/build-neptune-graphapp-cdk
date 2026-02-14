@@ -163,9 +163,10 @@ exports.handler = async (event) => {
         },
       };
     } else if (RequestType === "Delete") {
-      // On deletion, we need to clean up subscriptions
-      // Since we can't reliably track which subscriptions we created,
-      // we'll list all email subscriptions and remove them
+      // On deletion, remove all email subscriptions from the topic
+      // Note: We remove all email subscriptions since we can't reliably track
+      // which ones we created (SNS returns "pending confirmation" initially).
+      // This is acceptable for a dedicated Neptune notification topic.
       console.log("Delete request - cleaning up email subscriptions");
       
       const allSubscriptions = await listTopicSubscriptions(TopicArn);
@@ -190,7 +191,7 @@ exports.handler = async (event) => {
   }
 };
         `),
-        timeout: Duration.minutes(5),
+        timeout: Duration.seconds(30),
         logRetention: aws_logs.RetentionDays.ONE_WEEK,
       }
     );
