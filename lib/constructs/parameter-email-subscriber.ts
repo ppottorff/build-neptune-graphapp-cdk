@@ -258,7 +258,7 @@ exports.handler = async (event) => {
         {
           id: "AwsSolutions-IAM4",
           reason:
-            "AWSLambdaBasicExecutionRole is required for CloudWatch Logs access",
+            "AWSLambdaBasicExecutionRole is required for CloudWatch Logs access - CDK managed resource",
           appliesTo: [
             "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
           ],
