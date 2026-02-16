@@ -92,22 +92,49 @@ export class Api extends Construct {
     const lambdaRole = new aws_iam.Role(this, "lambdaRole", {
       assumedBy: new aws_iam.ServicePrincipal("lambda.amazonaws.com"),
     });
+    
+    // CloudWatch Logs permissions
     lambdaRole.addToPrincipalPolicy(
       new aws_iam.PolicyStatement({
-        resources: ["*"],
         actions: [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
+        ],
+        resources: [
+          `arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:log-group:/aws/lambda/*`,
+        ],
+      })
+    );
+    
+    // VPC ENI management permissions (scoped to VPC)
+    lambdaRole.addToPrincipalPolicy(
+      new aws_iam.PolicyStatement({
+        actions: [
           "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DescribeSubnets",
           "ec2:DeleteNetworkInterface",
           "ec2:AssignPrivateIpAddresses",
           "ec2:UnassignPrivateIpAddresses",
         ],
+        resources: [
+          `arn:aws:ec2:${Stack.of(this).region}:${Stack.of(this).account}:network-interface/*`,
+          `arn:aws:ec2:${Stack.of(this).region}:${Stack.of(this).account}:subnet/*`,
+          `arn:aws:ec2:${Stack.of(this).region}:${Stack.of(this).account}:security-group/*`,
+        ],
       })
     );
+    
+    // EC2 Describe permissions (read-only)
+    lambdaRole.addToPrincipalPolicy(
+      new aws_iam.PolicyStatement({
+        actions: [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeSubnets",
+        ],
+        resources: ["*"],
+      })
+    );
+    
     cluster.grantConnect(lambdaRole);
 
     // AWS Lambda for graph application
@@ -241,7 +268,8 @@ export class Api extends Construct {
       [
         {
           id: "AwsSolutions-IAM5",
-          reason: "Need the permission for accessing database in Vpc",
+          reason: "EC2 Describe actions do not support resource-level permissions and require wildcard",
+          appliesTo: ["Resource::*"],
         },
       ],
       true
