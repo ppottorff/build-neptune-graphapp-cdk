@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import SpriteText from "three-spritetext";
-import ForceGraph3D, { NodeObject } from "react-force-graph-3d";
+import { useEffect, useState, useCallback } from "react";
+import ForceGraph2D from "react-force-graph-2d";
 import { createFileRoute } from "@tanstack/react-router";
 import { omitBy, map, includes, trim, find } from "lodash-es";
 
@@ -148,10 +147,10 @@ function Graph3D() {
           )}
         </SheetContent>
       </Sheet>
-      <ForceGraph3D
+      <ForceGraph2D
         graphData={state}
         nodeAutoColorBy={"label"}
-        // linkAutoColorBy={"label"}
+        backgroundColor={"white"}
         height={displayHeight}
         width={displayWidth}
         nodeLabel={"id"}
@@ -159,36 +158,43 @@ function Graph3D() {
           setName(event.id);
           setOpen(true);
         }}
-        nodeThreeObject={(node: NodeObject) => {
-          if (typeof node.id !== "string") {
-            return;
-          }
-          const sprite = new SpriteText(node.id);
-          sprite.color = node.color;
-          sprite.textHeight = 8;
-          return sprite;
-        }}
-        linkThreeObjectExtend={true}
-        //   linkThreeObject={(link) => {
-        //     // extend link with text sprite
-        //     const sprite = new SpriteText(`${link.source} > ${link.target}`);
-        //     sprite.color = "lightgrey";
-        //     sprite.textHeight = 1.5;
-        //     return sprite;
-        //   }}
-        //   linkPositionUpdate={(sprite, { start, end }) => {
-        //     const middlePos = Object.assign(
-        //       ...["x", "y", "z"].map((c) => ({
-        //         [c]: start[c] + (end[c] - start[c]) / 2, // calc middle point
-        //       }))
-        //     );
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          const label = node.id as string;
+          const fontSize = 14 / globalScale;
+          ctx.font = `${fontSize}px Sans-Serif`;
+          const textWidth = ctx.measureText(label).width;
+          const padding = fontSize * 0.4;
 
-        //     // Position sprite
-        //     Object.assign(sprite.position, middlePos);
-        //   }}
+          // Draw background
+          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+          ctx.fillRect(
+            node.x! - textWidth / 2 - padding,
+            node.y! - fontSize / 2 - padding,
+            textWidth + padding * 2,
+            fontSize + padding * 2
+          );
+
+          // Draw border
+          ctx.strokeStyle = node.color || "#333";
+          ctx.lineWidth = 1.5 / globalScale;
+          ctx.strokeRect(
+            node.x! - textWidth / 2 - padding,
+            node.y! - fontSize / 2 - padding,
+            textWidth + padding * 2,
+            fontSize + padding * 2
+          );
+
+          // Draw text
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = node.color || "#333";
+          ctx.fillText(label, node.x!, node.y!);
+        }}
+        linkColor={() => "#cccccc"}
+        linkDirectionalArrowLength={3.5}
+        linkDirectionalArrowRelPos={1}
       />
     </main>
 
-    // </div>
   );
 }
