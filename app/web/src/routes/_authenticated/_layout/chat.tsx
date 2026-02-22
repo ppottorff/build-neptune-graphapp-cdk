@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Send, BrainCircuit, User, Loader2, Code, X } from "lucide-react";
+import { Send, MessageSquare, User, Loader2, Code, X } from "lucide-react";
 import { queryAskGraph } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 
@@ -106,9 +106,9 @@ function ChatPage() {
     <main className="flex flex-col h-screen max-h-screen">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b bg-background">
-        <BrainCircuit className="h-6 w-6 text-primary" />
+        <MessageSquare className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-lg font-semibold">Graph AI Assistant</h1>
+          <h1 className="text-lg font-semibold">Neptune GraphDB Chatbot</h1>
           <p className="text-sm text-muted-foreground">
             Ask questions about your graph data in natural language
           </p>
@@ -126,7 +126,7 @@ function ChatPage() {
           >
             {message.role === "assistant" && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <BrainCircuit className="h-4 w-4 text-primary" />
+                <MessageSquare className="h-4 w-4 text-primary" />
               </div>
             )}
             <div
@@ -186,7 +186,7 @@ function ChatPage() {
         {isLoading && (
           <div className="flex gap-3 justify-start">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <BrainCircuit className="h-4 w-4 text-primary" />
+              <MessageSquare className="h-4 w-4 text-primary" />
             </div>
             <div className="rounded-lg px-4 py-3 bg-muted">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -163,7 +163,7 @@ export class Api extends Construct {
         resources: [
           `arn:aws:bedrock:${Stack.of(this).region}::foundation-model/*`,
         ],
-        actions: ["bedrock:InvokeModel"],
+        actions: ["bedrock:InvokeModel", "bedrock:Converse"],
       })
     );
     cluster.grantConnect(aiQueryRole);
@@ -180,7 +180,7 @@ export class Api extends Construct {
           NEPTUNE_ENDPOINT: cluster.clusterReadEndpoint.hostname,
           NEPTUNE_PORT: cluster.clusterReadEndpoint.port.toString(),
           BEDROCK_REGION: Stack.of(this).region,
-          MODEL_ID: "anthropic.claude-3-haiku-20240307-v1:0",
+          MODEL_ID: "amazon.nova-lite-v1:0",
         },
         bundling: {
           nodeModules: [
@@ -190,9 +190,8 @@ export class Api extends Construct {
           ],
         },
         vpcSubnets: {
-          subnets: vpc.publicSubnets,
+          subnets: vpc.isolatedSubnets,
         },
-        allowPublicSubnet: true,
       }
     );
     graphql.grantQuery(aiQueryFn);

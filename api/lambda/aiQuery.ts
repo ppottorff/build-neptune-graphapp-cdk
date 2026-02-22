@@ -7,7 +7,7 @@ const traversal = gremlin.process.AnonymousTraversalSource.traversal;
 const P = gremlin.process.P;
 
 const BEDROCK_REGION = process.env.BEDROCK_REGION || "us-east-1";
-const MODEL_ID = process.env.MODEL_ID || "anthropic.claude-3-haiku-20240307-v1:0";
+const MODEL_ID = process.env.MODEL_ID || "amazon.nova-lite-v1:0";
 
 const GRAPH_SCHEMA = `
 Graph Schema:
@@ -75,29 +75,30 @@ interface ConversationEntry {
 
 async function invokeBedrock(messages: BedrockMessage[]): Promise<string> {
   // Use AWS SDK v3 - dynamically import to work with Lambda bundling
-  const { BedrockRuntimeClient, InvokeModelCommand } = await import(
+  const { BedrockRuntimeClient, ConverseCommand } = await import(
     "@aws-sdk/client-bedrock-runtime"
   );
 
   const client = new BedrockRuntimeClient({ region: BEDROCK_REGION });
 
-  const body = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages,
-  });
-
-  const command = new InvokeModelCommand({
+  const command = new ConverseCommand({
     modelId: MODEL_ID,
-    contentType: "application/json",
-    accept: "application/json",
-    body: new TextEncoder().encode(body),
+    system: [{ text: SYSTEM_PROMPT }],
+    messages: messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: [{ text: m.content }],
+    })),
+    inferenceConfig: {
+      maxTokens: 1024,
+    },
   });
 
   const response = await client.send(command);
-  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-  return responseBody.content[0].text;
+  const output = response.output?.message?.content;
+  if (!output || output.length === 0 || !output[0].text) {
+    throw new Error("Empty response from Bedrock");
+  }
+  return output[0].text;
 }
 
 function createRemoteConnection() {
@@ -180,6 +181,13 @@ export const handler: Handler = async (event) => {
       role: "user",
       content: question,
     });
+
+    // Converse API requires first message to be from "user" — strip leading assistant messages
+    while (messages.length > 0 && messages[0].role !== "user") {
+      messages.shift();
+    }
+
+    console.log("Sending messages to Bedrock:", JSON.stringify(messages.map(m => ({ role: m.role, len: m.content.length }))));
 
     // Call Bedrock to interpret the question
     const bedrockResponse = await invokeBedrock(messages);
