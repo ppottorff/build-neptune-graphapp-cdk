@@ -1,0 +1,221 @@
+name: Security & Dependency Scan (Claude)
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 8am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ANTHROPIC_MODEL: claude-sonnet-4-20250514
+
+jobs:
+  scan:
+    name: Claude Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # 1. Gather dependency & vulnerability data
+      # ---------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install frontend dependencies
+        working-directory: app/web
+        run: npm install --package-lock-only 2>/dev/null || true
+
+      - name: Run npm audit (root)
+        run: npm audit --json > /tmp/audit-root.json 2>/dev/null || true
+
+      - name: Run npm audit (frontend)
+        working-directory: app/web
+        run: npm audit --json > /tmp/audit-frontend.json 2>/dev/null || true
+
+      - name: Collect license info (root)
+        run: |
+          npx license-checker --json --production > /tmp/licenses-root.json 2>/dev/null || true
+
+      - name: Collect license info (frontend)
+        working-directory: app/web
+        run: |
+          npx license-checker --json --production > /tmp/licenses-frontend.json 2>/dev/null || true
+
+      - name: Check for non-registry dependencies
+        run: |
+          echo "=== Root package.json ===" > /tmp/dep-sources.txt
+          cat package.json | jq -r '(.dependencies // {}) + (.devDependencies // {}) | to_entries[] | "\(.key): \(.value)"' >> /tmp/dep-sources.txt
+          echo "" >> /tmp/dep-sources.txt
+          echo "=== Frontend package.json ===" >> /tmp/dep-sources.txt
+          cat app/web/package.json | jq -r '(.dependencies // {}) + (.devDependencies // {}) | to_entries[] | "\(.key): \(.value)"' >> /tmp/dep-sources.txt
+          echo "" >> /tmp/dep-sources.txt
+          echo "=== Lambda package.json ===" >> /tmp/dep-sources.txt
+          cat api/lambda/package.json | jq -r '(.dependencies // {}) + (.devDependencies // {}) | to_entries[] | "\(.key): \(.value)"' >> /tmp/dep-sources.txt 2>/dev/null || true
+
+      # ---------------------------------------------------------------
+      # 2. Gather source code for vulnerability review
+      # ---------------------------------------------------------------
+      - name: Collect source files for review
+        run: |
+          echo "=== CDK Infrastructure ===" > /tmp/source-code.txt
+          for f in lib/*.ts lib/constructs/*.ts bin/*.ts config.ts; do
+            if [ -f "$f" ]; then
+              echo "--- FILE: $f ---" >> /tmp/source-code.txt
+              cat "$f" >> /tmp/source-code.txt
+              echo "" >> /tmp/source-code.txt
+            fi
+          done
+
+          echo "=== Lambda Functions ===" >> /tmp/source-code.txt
+          find api/lambda -name '*.ts' ! -path '*/node_modules/*' | while read f; do
+            echo "--- FILE: $f ---" >> /tmp/source-code.txt
+            cat "$f" >> /tmp/source-code.txt
+            echo "" >> /tmp/source-code.txt
+          done
+
+          echo "=== GitHub Workflows ===" >> /tmp/source-code.txt
+          for f in .github/workflows/*.yml; do
+            echo "--- FILE: $f ---" >> /tmp/source-code.txt
+            cat "$f" >> /tmp/source-code.txt
+            echo "" >> /tmp/source-code.txt
+          done
+
+      # ---------------------------------------------------------------
+      # 3. Build the prompt and call Claude
+      # ---------------------------------------------------------------
+      - name: Build Claude prompt
+        run: |
+          cat > /tmp/prompt.txt << 'PROMPT_END'
+          You are a senior security engineer performing a comprehensive security audit of a repository.
+          Analyze the following data and produce a structured Markdown report covering EXACTLY these four categories:
+
+          ## 1. Code Vulnerabilities
+          Scan the source code for:
+          - Hardcoded secrets, API keys, or credentials
+          - SQL/Gremlin injection risks
+          - Insecure IAM policies (overly broad wildcards)
+          - Missing input validation
+          - Insecure deserialization
+          - SSRF, XSS, or command injection vectors
+          - Misconfigured security groups or network access
+          - Logging of sensitive data
+
+          ## 2. Patchable Dependencies
+          Using the npm audit data, identify:
+          - Which vulnerabilities have available fixes
+          - Which are blocked by upstream packages
+          - Recommended upgrade commands
+          - Severity breakdown (critical/high/moderate/low)
+
+          ## 3. GPL-Licensed Dependencies
+          From the license data, identify:
+          - Any dependencies using GPL, LGPL, AGPL, or other copyleft licenses
+          - Their license type and what it means for this project
+          - Whether they are production dependencies (risky) or dev-only (lower risk)
+
+          ## 4. Non-Official Registry Dependencies
+          From the dependency version specifiers, flag:
+          - Any git:// or github: URLs
+          - Any file: or link: references
+          - Any tarball URLs
+          - Any packages from private registries
+          - All dependencies should come from the official npm registry
+
+          Format your output as a single Markdown document with:
+          - A summary table at the top with counts per category (✅ none found or ⚠️ N issues)
+          - Detailed findings under each section
+          - Actionable recommendations
+          - A final risk rating: LOW / MEDIUM / HIGH / CRITICAL
+          PROMPT_END
+
+      - name: Call Claude API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Truncate large files to stay within token limits
+          head -c 80000 /tmp/source-code.txt > /tmp/source-code-trimmed.txt
+          head -c 40000 /tmp/audit-root.json > /tmp/audit-root-trimmed.json
+          head -c 40000 /tmp/audit-frontend.json > /tmp/audit-frontend-trimmed.json
+          head -c 40000 /tmp/licenses-root.json > /tmp/licenses-root-trimmed.json
+          head -c 40000 /tmp/licenses-frontend.json > /tmp/licenses-frontend-trimmed.json
+
+          # Build the message content
+          PROMPT=$(cat /tmp/prompt.txt)
+          SOURCE=$(cat /tmp/source-code-trimmed.txt)
+          AUDIT_ROOT=$(cat /tmp/audit-root-trimmed.json)
+          AUDIT_FRONTEND=$(cat /tmp/audit-frontend-trimmed.json)
+          LICENSES_ROOT=$(cat /tmp/licenses-root-trimmed.json)
+          LICENSES_FRONTEND=$(cat /tmp/licenses-frontend-trimmed.json)
+          DEP_SOURCES=$(cat /tmp/dep-sources.txt)
+
+          # Create the API request payload
+          jq -n \
+            --arg model "$ANTHROPIC_MODEL" \
+            --arg prompt "$PROMPT" \
+            --arg source "$SOURCE" \
+            --arg audit_root "$AUDIT_ROOT" \
+            --arg audit_frontend "$AUDIT_FRONTEND" \
+            --arg licenses_root "$LICENSES_ROOT" \
+            --arg licenses_frontend "$LICENSES_FRONTEND" \
+            --arg dep_sources "$DEP_SOURCES" \
+            '{
+              model: $model,
+              max_tokens: 8192,
+              messages: [{
+                role: "user",
+                content: ($prompt + "\n\n<source_code>\n" + $source + "\n</source_code>\n\n<npm_audit_root>\n" + $audit_root + "\n</npm_audit_root>\n\n<npm_audit_frontend>\n" + $audit_frontend + "\n</npm_audit_frontend>\n\n<licenses_root>\n" + $licenses_root + "\n</licenses_root>\n\n<licenses_frontend>\n" + $licenses_frontend + "\n</licenses_frontend>\n\n<dependency_sources>\n" + $dep_sources + "\n</dependency_sources>")
+              }]
+            }' > /tmp/api-request.json
+
+          # Call the Anthropic API
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/api-response.json \
+            -X POST https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+            -H "anthropic-version: 2023-06-01" \
+            -d @/tmp/api-request.json)
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Claude API returned HTTP $HTTP_STATUS"
+            cat /tmp/api-response.json
+            exit 1
+          fi
+
+          # Extract the response text
+          jq -r '.content[0].text' /tmp/api-response.json > /tmp/scan-report.md
+          echo "Claude scan complete."
+
+      # ---------------------------------------------------------------
+      # 4. Output results
+      # ---------------------------------------------------------------
+      - name: Write GitHub Step Summary
+        run: |
+          echo "# 🔒 Security & Dependency Scan Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Generated by Claude (${ANTHROPIC_MODEL}) on $(date -u '+%Y-%m-%d %H:%M UTC')_" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/scan-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: /tmp/scan-report.md
+          retention-days: 90
+
+      - name: Check for critical findings
+        run: |
+          if grep -qi "CRITICAL" /tmp/scan-report.md; then
+            echo "::warning::Critical findings detected — review the scan report"
+          fi
