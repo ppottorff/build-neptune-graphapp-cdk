@@ -133,6 +133,16 @@ export class Bastion extends Construct {
           id: "AwsSolutions-EC29",
           reason: "Termination protection not required for dev bastion",
         },
+        {
+          id: "AwsSolutions-IAM4",
+          reason:
+            "SSM managed policies are required for Session Manager access on the bastion host",
+        },
+        {
+          id: "AwsSolutions-IAM5",
+          reason:
+            "Wildcard permissions are required by SSM managed policies on the bastion host",
+        },
       ],
       true
     );
