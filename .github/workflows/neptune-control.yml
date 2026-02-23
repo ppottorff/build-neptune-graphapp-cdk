@@ -4,13 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Action to perform on Neptune cluster'
+        description: 'Action to perform'
         required: true
         type: choice
         options:
           - stop
           - start
           - status
+      target:
+        description: 'Resource to control'
+        required: true
+        type: choice
+        options:
+          - neptune
+          - bastion
+          - both
 
 permissions:
   id-token: write
@@ -19,10 +27,12 @@ permissions:
 env:
   AWS_REGION: us-east-1
   AWS_ACCOUNT_ID: 384492676078
+  BASTION_INSTANCE_ID: i-0b4bd9e067ac8b605
 
 jobs:
   neptune-control:
     name: "${{ inputs.action }} Neptune cluster"
+    if: inputs.target == 'neptune' || inputs.target == 'both'
     runs-on: ubuntu-latest
 
     steps:
@@ -117,5 +127,74 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Action** | \`${{ inputs.action }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Cluster** | \`$CLUSTER_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Before** | \`${{ steps.before-status.outputs.status }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Current** | \`$STATUS\` |" >> $GITHUB_STEP_SUMMARY
+
+  bastion-control:
+    name: "${{ inputs.action }} Bastion instance"
+    if: inputs.target == 'bastion' || inputs.target == 'both'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get current bastion status
+        id: before-status
+        run: |
+          STATUS=$(aws ec2 describe-instances \
+            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text --region ${{ env.AWS_REGION }})
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "Current bastion status: **$STATUS**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Stop bastion
+        if: inputs.action == 'stop'
+        run: |
+          echo "Stopping bastion instance ${{ env.BASTION_INSTANCE_ID }}"
+          aws ec2 stop-instances \
+            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Start bastion
+        if: inputs.action == 'start'
+        run: |
+          echo "Starting bastion instance ${{ env.BASTION_INSTANCE_ID }}"
+          aws ec2 start-instances \
+            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for status change
+        if: inputs.action != 'status'
+        run: |
+          echo "Waiting for bastion to transition..."
+          if [[ "${{ inputs.action }}" == "stop" ]]; then
+            aws ec2 wait instance-stopped \
+              --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+              --region ${{ env.AWS_REGION }}
+          elif [[ "${{ inputs.action }}" == "start" ]]; then
+            aws ec2 wait instance-running \
+              --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+              --region ${{ env.AWS_REGION }}
+          fi
+          echo "Done."
+
+      - name: Summary
+        run: |
+          STATUS=$(aws ec2 describe-instances \
+            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text --region ${{ env.AWS_REGION }})
+
+          echo "## Bastion Instance Control" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Action** | \`${{ inputs.action }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Instance** | \`${{ env.BASTION_INSTANCE_ID }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Before** | \`${{ steps.before-status.outputs.status }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Current** | \`$STATUS\` |" >> $GITHUB_STEP_SUMMARY

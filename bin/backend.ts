@@ -39,6 +39,12 @@ const neptuneNetwork = new NeptuneNetworkStack(
       stopHour: 0,   // midnight Pacific — cluster stops
       startHour: 16,  // 4pm Pacific — cluster starts
     },
+    // Bastion host for remote Neptune access via SSM
+    bastion: {
+      enabled: true,
+      timezone: "America/Los_Angeles",
+      stopHour: 0,  // midnight Pacific — bastion stops
+    },
     env,
   }
 );

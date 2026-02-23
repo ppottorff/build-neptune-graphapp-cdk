@@ -5,6 +5,7 @@ import { NagSuppressions } from "cdk-nag";
 import { Network } from "./constructs/network";
 import { Neptune } from "./constructs/neptune";
 import { NeptuneScheduler } from "./constructs/neptune-scheduler";
+import { Bastion } from "./constructs/bastion";
 import { ParameterEmailSubscriber } from "./constructs/parameter-email-subscriber";
 
 interface NeptuneScheduleConfig {
@@ -25,6 +26,14 @@ interface NeptuneNetworkStackProps extends StackProps {
   neptuneServerlssCapacity?: neptune.ServerlessScalingConfiguration;
   /** Optional schedule to stop/start Neptune during off-hours */
   neptuneSchedule?: NeptuneScheduleConfig;
+  /** Enable a bastion host for remote Neptune access via SSM */
+  bastion?: {
+    enabled: boolean;
+    /** IANA timezone (default: America/Los_Angeles) */
+    timezone?: string;
+    /** Hour to auto-stop the bastion (default: 0 = midnight) */
+    stopHour?: number;
+  };
 }
 
 export class NeptuneNetworkStack extends Stack {
@@ -40,6 +49,7 @@ export class NeptuneNetworkStack extends Stack {
       neptuneServerlss,
       neptuneServerlssCapacity,
       neptuneSchedule,
+      bastion: bastionConfig,
     } = props;
 
     const network = new Network(this, "network", {
@@ -56,6 +66,16 @@ export class NeptuneNetworkStack extends Stack {
 
     this.cluster = neptune.cluster;
     this.neptuneRole = neptune.neptuneRole;
+
+    // Bastion host for remote Neptune access via SSM
+    if (bastionConfig?.enabled) {
+      new Bastion(this, "bastion", {
+        vpc: this.vpc,
+        cluster: this.cluster,
+        timezone: bastionConfig.timezone,
+        stopHour: bastionConfig.stopHour,
+      });
+    }
 
     // Schedule Neptune stop/start to save costs during off-hours
     if (neptuneSchedule?.enabled) {
