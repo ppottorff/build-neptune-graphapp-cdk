@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       deploy-target:
@@ -84,11 +85,7 @@ jobs:
             FRONTEND=true
           fi
 
-          # Workflow file changed — deploy everything
-          if echo "$CHANGED" | grep -qE '^\.github/workflows/'; then
-            BACKEND=true
-            FRONTEND=true
-          fi
+          # Workflow files are excluded — no deploy trigger for .github/workflows/
 
           # Safety: if nothing matched, deploy everything
           if [[ "$BACKEND" == "false" && "$FRONTEND" == "false" ]]; then

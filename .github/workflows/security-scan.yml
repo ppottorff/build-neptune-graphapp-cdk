@@ -343,18 +343,21 @@ jobs:
               continue
             fi
 
-            ISSUE_BODY="## Security Finding
+            ISSUE_BODY=$(cat <<EOF
+          ## Security Finding
 
-**Severity:** \`${SEVERITY}\`
-**Category:** \`${CATEGORY}\`
-**Source:** Claude Security Scan ($(date -u '+%Y-%m-%d'))
+          **Severity:** ${SEVERITY}
+          **Category:** ${CATEGORY}
+          **Source:** Claude Security Scan ($(date -u '+%Y-%m-%d'))
 
----
+          ---
 
-${BODY}
+          ${BODY}
 
----
-_This issue was automatically created by the [Security Scan workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})._"
+          ---
+          _This issue was automatically created by the [Security Scan workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})._
+          EOF
+          )
 
             gh issue create \
               --repo "${{ github.repository }}" \
