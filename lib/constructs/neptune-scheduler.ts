@@ -155,19 +155,6 @@ export class NeptuneScheduler extends Construct {
       state: "ENABLED",
     });
 
-    // Start Neptune at the configured hour (default: 4pm Pacific)
-    new aws_scheduler.CfnSchedule(this, "start-schedule", {
-      name: "neptune-start-schedule",
-      description: `Start Neptune cluster at ${startHour}:00 ${timezone}`,
-      scheduleExpressionTimezone: timezone,
-      scheduleExpression: `cron(0 ${startHour} * * ? *)`,
-      flexibleTimeWindow: { mode: "OFF" },
-      target: {
-        arn: schedulerFn.functionArn,
-        roleArn: schedulerRole.roleArn,
-        input: JSON.stringify({ action: "start" }),
-      },
-      state: "ENABLED",
-    });
+
   }
 }
