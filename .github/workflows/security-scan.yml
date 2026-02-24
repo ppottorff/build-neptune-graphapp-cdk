@@ -65,7 +65,43 @@ jobs:
           cat api/lambda/package.json | jq -r '(.dependencies // {}) + (.devDependencies // {}) | to_entries[] | "\(.key): \(.value)"' >> /tmp/dep-sources.txt 2>/dev/null || true
 
       # ---------------------------------------------------------------
-      # 1b. Fetch and triage Dependabot alerts
+      # 1b. Check latest AWS SDK/CDK/CLI versions
+      # ---------------------------------------------------------------
+      - name: Fetch latest AWS package versions
+        run: |
+          echo "=== AWS Package Version Check ===" > /tmp/version-check.txt
+          echo "" >> /tmp/version-check.txt
+
+          # Key packages to check
+          PACKAGES=("aws-cdk-lib" "aws-cdk" "@aws-cdk/aws-neptune-alpha" "constructs" "typescript" "esbuild" "cdk-nag")
+
+          for pkg in "${PACKAGES[@]}"; do
+            LATEST=$(npm view "$pkg" version 2>/dev/null || echo "unknown")
+
+            # Try to find installed version from package.json
+            INSTALLED=$(jq -r --arg p "$pkg" '(.dependencies[$p] // .devDependencies[$p] // "not installed")' package.json)
+            if [ "$INSTALLED" == "not installed" ]; then
+              INSTALLED=$(jq -r --arg p "$pkg" '(.dependencies[$p] // .devDependencies[$p] // "not installed")' app/web/package.json 2>/dev/null || echo "not installed")
+            fi
+
+            echo "$pkg: installed=$INSTALLED latest=$LATEST" >> /tmp/version-check.txt
+          done
+
+          # Also check AWS CLI from the runner
+          AWS_CLI_VERSION=$(aws --version 2>/dev/null | awk '{print $1}' | cut -d/ -f2 || echo "unknown")
+          echo "aws-cli: installed=$AWS_CLI_VERSION" >> /tmp/version-check.txt
+
+          echo "" >> /tmp/version-check.txt
+          echo "--- Installed versions (package-lock.json resolved) ---" >> /tmp/version-check.txt
+          for pkg in "${PACKAGES[@]}"; do
+            RESOLVED=$(jq -r --arg p "$pkg" '.packages["node_modules/" + $p].version // "not in lockfile"' package-lock.json 2>/dev/null || echo "not in lockfile")
+            echo "$pkg: resolved=$RESOLVED" >> /tmp/version-check.txt
+          done
+
+          cat /tmp/version-check.txt
+
+      # ---------------------------------------------------------------
+      # 1c. Fetch and triage Dependabot alerts
       # ---------------------------------------------------------------
       - name: Fetch Dependabot alerts
         env:
@@ -179,11 +215,14 @@ jobs:
           - Logging of sensitive data
 
           ## 2. Patchable Dependencies
-          Using the npm audit data, identify:
-          - Which vulnerabilities have available fixes
-          - Which are blocked by upstream packages
-          - Recommended upgrade commands
-          - Severity breakdown (critical/high/moderate/low)
+          Using the npm audit data, identify ONLY vulnerabilities that have available fixes
+          the project maintainer can actually apply. Specifically:
+          - List vulnerabilities with available fixes and recommended upgrade commands
+          - Severity breakdown (critical/high/moderate/low) for fixable issues only
+          - COMPLETELY OMIT vulnerabilities that are bundled inside upstream packages
+            (e.g. minimatch, ajv, glob inside aws-cdk-lib or jest) — these cannot be
+            fixed by the project maintainer and should not appear in the report at all
+          - If all vulnerabilities are unfixable upstream issues, report ✅ for this section
 
           ## 3. GPL-Licensed Dependencies
           From the license data, identify:
@@ -199,8 +238,21 @@ jobs:
           - Any packages from private registries
           - All dependencies should come from the official npm registry
 
+          ## 5. AWS SDK/CDK/CLI Version Freshness
+          Using the version check data, report:
+          - Which AWS packages are outdated and what the latest version is
+          - Whether the update is a patch, minor, or major version bump
+          - Recommended update commands (e.g. npm install aws-cdk-lib@latest)
+          - ONLY report packages where an update is actually available
+          - Do NOT flag a package as outdated if the installed version already satisfies
+            the latest release (e.g. ^2.238.0 when latest is 2.239.0 is fine to flag,
+            but only if updating would fix a security issue or the gap is significant)
+          - Do NOT report vulnerabilities tied to CDK/CLI versions where there is no
+            newer version that fixes the issue — only report if upgrading would help
+          - If all packages are current, report ✅ for this section
+
           Format your output as a single Markdown document with:
-          - A summary table at the top with counts per category (✅ none found or ⚠️ N issues)
+          - A summary table at the top with counts per category (✅ none found or ⚠️ N issues) for all 5 sections
           - Detailed findings under each section
           - Actionable recommendations
           - A final risk rating: LOW / MEDIUM / HIGH / CRITICAL
@@ -232,6 +284,7 @@ jobs:
           LICENSES_FRONTEND=$(cat /tmp/licenses-frontend-trimmed.json)
           DEP_SOURCES=$(cat /tmp/dep-sources.txt)
           DEPENDABOT=$(cat /tmp/dependabot-remaining.json | head -c 20000)
+          VERSIONS=$(cat /tmp/version-check.txt)
 
           # Create the API request payload
           jq -n \
@@ -244,12 +297,13 @@ jobs:
             --arg licenses_frontend "$LICENSES_FRONTEND" \
             --arg dep_sources "$DEP_SOURCES" \
             --arg dependabot "$DEPENDABOT" \
+            --arg versions "$VERSIONS" \
             '{
               model: $model,
               max_tokens: 8192,
               messages: [{
                 role: "user",
-                content: ($prompt + "\n\n<source_code>\n" + $source + "\n</source_code>\n\n<npm_audit_root>\n" + $audit_root + "\n</npm_audit_root>\n\n<npm_audit_frontend>\n" + $audit_frontend + "\n</npm_audit_frontend>\n\n<licenses_root>\n" + $licenses_root + "\n</licenses_root>\n\n<licenses_frontend>\n" + $licenses_frontend + "\n</licenses_frontend>\n\n<dependency_sources>\n" + $dep_sources + "\n</dependency_sources>\n\n<dependabot_open_alerts>\n" + $dependabot + "\n</dependabot_open_alerts>")
+                content: ($prompt + "\n\n<source_code>\n" + $source + "\n</source_code>\n\n<npm_audit_root>\n" + $audit_root + "\n</npm_audit_root>\n\n<npm_audit_frontend>\n" + $audit_frontend + "\n</npm_audit_frontend>\n\n<licenses_root>\n" + $licenses_root + "\n</licenses_root>\n\n<licenses_frontend>\n" + $licenses_frontend + "\n</licenses_frontend>\n\n<dependency_sources>\n" + $dep_sources + "\n</dependency_sources>\n\n<dependabot_open_alerts>\n" + $dependabot + "\n</dependabot_open_alerts>\n\n<aws_version_check>\n" + $versions + "\n</aws_version_check>")
               }]
             }' > /tmp/api-request.json
 
