@@ -1,4 +1,4 @@
-import { Stack, StackProps, aws_ec2, aws_iam, aws_kms, aws_sns, aws_rds } from "aws-cdk-lib";
+import { Stack, StackProps, aws_ec2, aws_events, aws_events_targets, aws_iam, aws_kms, aws_sns, aws_rds } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as neptune from "@aws-cdk/aws-neptune-alpha";
 import { NagSuppressions } from "cdk-nag";
@@ -146,6 +146,89 @@ export class NeptuneNetworkStack extends Stack {
       sourceIds: [this.cluster.clusterIdentifier],
       enabled: true,
       eventCategories: ["failover", "failure", "maintenance", "notification"],
+    });
+
+    // -----------------------------------------------------------------------
+    // EC2 Instance State-Change Email Notifications
+    // -----------------------------------------------------------------------
+    const ec2StatusKey = new aws_kms.Key(this, "EC2StatusTopicKey", {
+      description: "KMS key for EC2 status SNS topic encryption",
+      enableKeyRotation: true,
+    });
+
+    const ec2StatusTopic = new aws_sns.Topic(this, "EC2StatusTopic", {
+      displayName: "EC2 Instance State-Change Notifications",
+      masterKey: ec2StatusKey,
+    });
+
+    // Enforce SSL-only access to the topic (AwsSolutions-SNS3)
+    ec2StatusTopic.addToResourcePolicy(
+      new aws_iam.PolicyStatement({
+        sid: "AllowPublishThroughSSLOnly",
+        effect: aws_iam.Effect.DENY,
+        principals: [new aws_iam.AnyPrincipal()],
+        actions: ["sns:Publish"],
+        resources: [ec2StatusTopic.topicArn],
+        conditions: {
+          Bool: { "aws:SecureTransport": "false" },
+        },
+      })
+    );
+
+    // Allow EventBridge to publish to the encrypted topic
+    ec2StatusTopic.addToResourcePolicy(
+      new aws_iam.PolicyStatement({
+        sid: "AllowEventBridgePublish",
+        effect: aws_iam.Effect.ALLOW,
+        principals: [new aws_iam.ServicePrincipal("events.amazonaws.com")],
+        actions: ["sns:Publish"],
+        resources: [ec2StatusTopic.topicArn],
+      })
+    );
+
+    ec2StatusKey.addToResourcePolicy(
+      new aws_iam.PolicyStatement({
+        sid: "AllowEventBridgeUseKey",
+        effect: aws_iam.Effect.ALLOW,
+        principals: [new aws_iam.ServicePrincipal("events.amazonaws.com")],
+        actions: ["kms:Decrypt", "kms:GenerateDataKey*"],
+        resources: ["*"],
+      })
+    );
+
+    // Subscribe the same email addresses from Parameter Store
+    new ParameterEmailSubscriber(this, "EC2EmailSubscriber", {
+      topicArn: ec2StatusTopic.topicArn,
+      parameterName: "/global-app-params/rdsnotificationemails",
+    });
+
+    // EventBridge rule: EC2 instance state-change (started / stopped)
+    new aws_events.Rule(this, "EC2InstanceStateChangeRule", {
+      ruleName: "ec2-instance-state-change-notifications",
+      description:
+        "Send email when any EC2 instance in us-east-1 is started or stopped",
+      eventPattern: {
+        source: ["aws.ec2"],
+        detailType: ["EC2 Instance State-change Notification"],
+        detail: {
+          state: ["running", "stopped"],
+        },
+      },
+      targets: [
+        new aws_events_targets.SnsTopic(ec2StatusTopic, {
+          message: aws_events.RuleTargetInput.fromText(
+            `EC2 Instance State Change — Instance ${
+              aws_events.EventField.fromPath("$.detail.instance-id")
+            } is now ${
+              aws_events.EventField.fromPath("$.detail.state")
+            } (Account: ${
+              aws_events.EventField.fromPath("$.account")
+            }, Region: ${
+              aws_events.EventField.fromPath("$.region")
+            })`
+          ),
+        }),
+      ],
     });
 
     // -----------------------------------------------------------------------
