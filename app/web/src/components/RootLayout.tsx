@@ -8,6 +8,7 @@ import {
   CopyPlus,
   Database,
   LogOut,
+  Activity,
 } from "lucide-react";
 
 import {
@@ -102,6 +103,20 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">Graph Visualization</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/monitoring"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                >
+                  <Activity className="h-5 w-5" />
+                  <span className="sr-only">Application Dependency Monitoring</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Application Dependency Monitoring</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </nav>
