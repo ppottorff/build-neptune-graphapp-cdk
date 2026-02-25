@@ -44,3 +44,34 @@ export const askGraph = /* GraphQL */ `
     }
   }
 `;
+
+export const getEntityProperties = /* GraphQL */ `
+  query getEntityProperties($vertexType: String!, $searchValue: String, $vertexId: String) {
+    getEntityProperties(vertexType: $vertexType, searchValue: $searchValue, vertexId: $vertexId) {
+      key
+      value
+    }
+  }
+`;
+
+export const getEntityEdges = /* GraphQL */ `
+  query getEntityEdges($vertexType: String!, $searchValue: String, $vertexId: String) {
+    getEntityEdges(vertexType: $vertexType, searchValue: $searchValue, vertexId: $vertexId) {
+      edgeLabel
+      direction
+      targetLabel
+      targetName
+    }
+  }
+`;
+
+export const searchEntities = /* GraphQL */ `
+  query searchEntities($vertexType: String!, $searchValue: String) {
+    searchEntities(vertexType: $vertexType, searchValue: $searchValue) {
+      id
+      name
+      label
+      entityType
+    }
+  }
+`;

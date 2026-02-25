@@ -17,5 +17,7 @@ export type S3Uri = {
 };
 export declare class Api extends Construct {
     readonly graphqlUrl: string;
+    readonly graphqlApiId: string;
+    readonly lambdaFunctionNames: Record<string, string>;
     constructor(scope: Construct, id: string, props: BackendApiProps);
 }

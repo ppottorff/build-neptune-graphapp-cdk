@@ -37,6 +37,25 @@ type AiResponse {
   data: String
 }
 
+type EntityProperty {
+  key: String!
+  value: String!
+}
+
+type EdgeRelation {
+  edgeLabel: String!
+  direction: String!
+  targetLabel: String!
+  targetName: String!
+}
+
+type SearchResult {
+  id: String!
+  name: String!
+  label: String!
+  entityType: String
+}
+
 ############################### Inputs ###############################
 input InsertDataInput {
   value: String!
@@ -48,6 +67,7 @@ input InsertDataInput {
   sourceLabel: String
   destination: String
   destLabel: String
+  properties: String
 }
 
 ############################### Queries ###############################
@@ -58,6 +78,12 @@ type Query {
     @aws_cognito_user_pools
   getGraph(type: String!, value: String!): Graph @aws_cognito_user_pools
   askGraph(question: String!, history: String): AiResponse
+    @aws_cognito_user_pools
+  searchEntities(vertexType: String!, searchValue: String): [SearchResult]
+    @aws_cognito_user_pools
+  getEntityProperties(vertexType: String!, searchValue: String, vertexId: String): [EntityProperty]
+    @aws_cognito_user_pools
+  getEntityEdges(vertexType: String!, searchValue: String, vertexId: String): [EdgeRelation]
     @aws_cognito_user_pools
 }
 ############################### Mutations ###############################

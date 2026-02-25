@@ -9,25 +9,116 @@ const MODEL_ID = process.env.MODEL_ID || "amazon.nova-lite-v1:0";
 
 const GRAPH_SCHEMA = `
 Graph Schema:
-- Vertex labels: person, product, conference, institution, document
-- Edge labels: usage, belong_to, authored_by, affiliated_with, made_by
-- All vertices have a "name" property
-- Edge "usage" connects person -> product (with numeric weight)
-- Edge "belong_to" connects document -> conference
-- Edge "authored_by" connects document -> person
-- Edge "affiliated_with" connects person -> institution
-- Edge "made_by" connects product -> person/institution
+
+VERTEX LABELS AND PROPERTIES:
+
+1. Entity (~label: "Entity")
+   - entityTypes:String — one of: "Company", "Customer", "Estimator", "Jobber", or "Jobber;Company"
+   - companyType:String — e.g. "CollisionShop", "PPFInstaller" (only for Company/Jobber;Company)
+   - name:String — person name (for Customer, Estimator)
+   - companyName:String — company/business name (for Company, Jobber, Jobber;Company)
+   - address:String, country:String, phone:String, email:String, website:String
+
+2. Asset (~label: "Asset")
+   - assetType:String — one of: "Vehicle", "Boat", "JetSki", "Camper", "RV", "Phone", "Equipment", "Home"
+   - For Vehicle/Camper/RV: vin:String, year:Int, make:String, model:String
+   - For Boat/JetSki: hullId:String, year:Int, make:String, model:String
+   - For Boat: lengthFt:Double, boatType:String
+   - For Phone: imei:String, brand:String, model:String, carrier:String, phoneNumber:String
+   - For Equipment: serialNumber:String, brand:String, model:String, equipmentType:String
+   - For Home: address:String, squareFeet:Int, yearBuilt:Int
+   - For RV: rvClass:String, lengthFt:Double
+   - For Camper: lengthFt:Double
+
+3. Job (~label: "Job")
+   - roNumber:String — repair order number (e.g. "RO-102938")
+   - jobName:String — description (e.g. "Front Bumper PPF Replacement")
+   - jobCategory:String — e.g. "PPF"
+   - payerType:String — "Insurance" or "Customer"
+   - createdDate:String, status:String ("Draft","Approved","Scheduled"), statusDate:String
+
+4. Part (~label: "Part")
+   - partId:String — part identifier (e.g. "jb1_front_bumper")
+   - partName:String — display name (e.g. "Front Bumper")
+   - retailCost:Double — retail price
+
+EDGE LABELS AND PROPERTIES:
+
+1. WORKS_FOR: Entity(Estimator) -> Entity(Company)
+   - role:String (e.g. "estimator")
+
+2. REQUESTS_WORK: Entity(Customer) -> Entity(Company), or Entity(Company) -> Entity(Jobber)
+   - role:String (e.g. "collision_repair", "ppf_install")
+
+3. DOES_WORK_FOR: Entity(Jobber) -> Entity(Company), or Entity(Company) -> Entity(Customer)
+   - role:String (e.g. "ppf_supplier", "collision_repair")
+   - discountPercent:Int (optional, on Jobber->Company edges)
+
+4. OWNS_ASSET: Entity(Customer) -> Asset
+   - No extra properties
+
+5. MANAGES_JOB: Entity(Estimator) -> Job
+   - role:String (e.g. "estimator")
+
+6. SERVICE_ON: Job -> Asset
+   - No extra properties
+
+7. PAYS_FOR: Entity(Customer) -> Job
+   - payerType:String ("Insurance" or "Customer")
+
+8. OFFERS_PART: Entity(Jobber) -> Part
+   - No extra properties
+
+9. HAS_LINE_ITEM: Job -> Part
+   - partPosition:String (e.g. "Front", "FrontLeft", "FrontRight", "Left", "Right", "AllDoors", "Rear", "Hull")
+   - finalPrice:Double
+   - retailCostAtTime:Int
+   - discountPercentAtTime:Int
+   - isOverridden:Bool
+
+10. JOBBER_FOR_JOB: Entity(Jobber) -> Job
+    - No extra properties
+
+VERTEX ID PATTERNS:
+- Companies: entity_co_1..entity_co_10
+- Customers: entity_cu_1..entity_cu_12
+- Estimators: entity_es_1..entity_es_10
+- Jobbers: entity_jb_1..entity_jb_5, entity_mr_1
+- Vehicles: asset_v_1..asset_v_12
+- Boats: asset_b_1..asset_b_2
+- JetSkis: asset_js_1..asset_js_2
+- Camper: asset_cm_1, RV: asset_rv_1, Phone: asset_ph_1, Equipment: asset_eq_1, Home: asset_hm_1
+- Jobs: job_1..job_15
+- Parts: part_1..part_20
 
 Example Gremlin queries:
-- Get all people: g.V().hasLabel('person').values('name').toList()
-- Get products used by a person: g.V().has('person','name','Doctor1').out('usage').values('name').toList()
-- Count vertices: g.V().count().next()
-- Count edges: g.E().count().next()
+- List all collision shops: g.V().hasLabel('Entity').has('entityTypes','Company').values('companyName').toList()
+- List all customers: g.V().hasLabel('Entity').has('entityTypes','Customer').values('name').toList()
+- Get vehicles owned by a customer: g.V().has('Entity','name','David Ramirez').out('OWNS_ASSET').has('assetType','Vehicle').valueMap(true).toList()
+- Find which company an estimator works for: g.V().has('Entity','name','Sarah Mitchell').out('WORKS_FOR').values('companyName').toList()
+- Get all jobs for a vehicle: g.V('asset_v_1').in('SERVICE_ON').valueMap(true).toList()
+- Get line items on a job: g.V('job_1').out('HAS_LINE_ITEM').valueMap(true).toList()
+- Get total cost of a job: g.V('job_1').outE('HAS_LINE_ITEM').values('finalPrice').sum().next()
+- Find which jobber supplied a job: g.V('job_1').in('JOBBER_FOR_JOB').values('companyName').toList()
+- List all jobs managed by an estimator: g.V().has('Entity','name','Sarah Mitchell').out('MANAGES_JOB').valueMap(true).toList()
+- Find customers of a collision shop: g.V().has('Entity','companyName','Elite Collision Center').in('REQUESTS_WORK').has('entityTypes','Customer').values('name').toList()
+- Get parts offered by a jobber: g.V().has('Entity','companyName','Northwest PPF Solutions').out('OFFERS_PART').valueMap(true).toList()
+- Count vertices by label: g.V().groupCount().by(label).next()
+- Count edges by label: g.E().groupCount().by(label).next()
 - Get all vertex labels: g.V().label().dedup().toList()
-- Get neighbors of a vertex: g.V().has('person','name','Doctor1').both().values('name').toList()
+- Get all edge labels: g.E().label().dedup().toList()
 `;
 
-const SYSTEM_PROMPT = `You are a graph database assistant for Amazon Neptune. You help users query a graph database using natural language.
+const SYSTEM_PROMPT = `You are a graph database assistant for an Amazon Neptune graph database that models a collision repair and PPF (Paint Protection Film) business network.
+
+The business domain includes:
+- **Collision Shops** (Companies) that repair vehicles
+- **Customers** who bring vehicles and other assets for service
+- **Estimators** who work for collision shops and manage repair jobs
+- **Jobbers** (PPF film suppliers/installers) who supply parts to collision shops
+- **Assets** owned by customers (Vehicles, Boats, JetSkis, Campers, RVs, Phones, Equipment, Homes)
+- **Jobs** (repair orders) that track PPF installation work
+- **Parts** (PPF film pieces like bumpers, fenders, hoods) offered by jobbers
 
 ${GRAPH_SCHEMA}
 
@@ -39,6 +130,8 @@ When a user asks a question about the graph data:
 IMPORTANT RULES:
 - Only generate READ queries (no mutations/drops)
 - Use the Gremlin traversal language
+- Edge labels are UPPERCASE (e.g. WORKS_FOR, OWNS_ASSET, HAS_LINE_ITEM)
+- Use 'name' for people (Customers, Estimators) and 'companyName' for businesses (Companies, Jobbers)
 - Always return valid JSON in this exact format:
 
 If a query is needed:
@@ -48,17 +141,23 @@ If no query is needed (general question about the schema, greetings, etc.):
 {"needsQuery": false, "answer": "<your answer>", "explanation": ""}
 
 Examples:
-User: "Who are all the people in the graph?"
-{"needsQuery": true, "gremlinQuery": "V().hasLabel('person').values('name').toList()", "explanation": "Lists all person vertices by name"}
+User: "What collision shops are in the system?"
+{"needsQuery": true, "gremlinQuery": "V().hasLabel('Entity').has('entityTypes','Company').values('companyName').toList()", "explanation": "Lists all company names"}
 
-User: "What products does Doctor1 use?"
-{"needsQuery": true, "gremlinQuery": "V().has('person','name','Doctor1').out('usage').values('name').toList()", "explanation": "Finds products connected to Doctor1 via usage edges"}
+User: "What vehicles does David Ramirez own?"
+{"needsQuery": true, "gremlinQuery": "V().has('Entity','name','David Ramirez').out('OWNS_ASSET').has('assetType','Vehicle').valueMap('make','model','year','vin').toList()", "explanation": "Finds vehicles owned by David Ramirez"}
 
-User: "How many nodes are in the graph?"
-{"needsQuery": true, "gremlinQuery": "V().count().next()", "explanation": "Counts all vertices in the graph"}
+User: "How much does job RO-102938 cost?"
+{"needsQuery": true, "gremlinQuery": "V().hasLabel('Job').has('roNumber','RO-102938').outE('HAS_LINE_ITEM').values('finalPrice').sum().next()", "explanation": "Sums the final prices of all line items on the job"}
 
-User: "What types of relationships exist?"
-{"needsQuery": false, "answer": "The graph has these relationship types: usage, belong_to, authored_by, affiliated_with, and made_by.", "explanation": ""}
+User: "Who is the estimator for job 1?"
+{"needsQuery": true, "gremlinQuery": "V('job_1').in('MANAGES_JOB').values('name').toList()", "explanation": "Finds the estimator managing job_1"}
+
+User: "What types of data are in this graph?"
+{"needsQuery": false, "answer": "The graph models a collision repair and PPF business network with: Entity vertices (Companies, Customers, Estimators, Jobbers), Asset vertices (Vehicles, Boats, JetSkis, Campers, RVs, etc.), Job vertices (repair orders), and Part vertices (PPF film pieces). Relationships include WORKS_FOR, REQUESTS_WORK, DOES_WORK_FOR, OWNS_ASSET, MANAGES_JOB, SERVICE_ON, PAYS_FOR, OFFERS_PART, HAS_LINE_ITEM, and JOBBER_FOR_JOB.", "explanation": ""}
+
+User: "What discount does Northwest PPF Solutions give Elite Collision Center?"
+{"needsQuery": true, "gremlinQuery": "V().has('Entity','companyName','Northwest PPF Solutions').outE('DOES_WORK_FOR').where(inV().has('companyName','Elite Collision Center')).values('discountPercent').toList()", "explanation": "Gets the discount percentage on the jobber-to-company relationship"}
 `;
 
 interface BedrockMessage {
@@ -152,7 +251,7 @@ export const handler: Handler = async (event) => {
   if (!question) {
     return {
       answer:
-        "Please ask a question about the graph data. For example: 'Who are all the people in the graph?' or 'What products does Doctor1 use?'",
+        "Please ask a question about the graph data. For example: 'What collision shops are in the system?', 'What vehicles does David Ramirez own?', or 'How much does job RO-102938 cost?'",
       query: null,
       data: null,
     };

@@ -39,6 +39,8 @@ export type S3Uri = {
 
 export class Api extends Construct {
   readonly graphqlUrl: string;
+  readonly graphqlApiId: string;
+  readonly lambdaFunctionNames: Record<string, string>;
 
   constructor(scope: Construct, id: string, props: BackendApiProps) {
     super(scope, id);
@@ -88,6 +90,8 @@ export class Api extends Construct {
     });
 
     this.graphqlUrl = graphql.graphqlUrl;
+    this.graphqlApiId = graphql.apiId;
+    this.lambdaFunctionNames = {};
 
     const lambdaRole = new aws_iam.Role(this, "lambdaRole", {
       assumedBy: new aws_iam.ServicePrincipal("lambda.amazonaws.com"),
@@ -118,6 +122,7 @@ export class Api extends Construct {
       depsLockFilePath: "./api/lambda/package-lock.json",
       architecture: aws_lambda.Architecture.ARM_64,
       timeout: Duration.minutes(1),
+      tracing: aws_lambda.Tracing.ACTIVE,
       role: lambdaRole,
       vpc: vpc,
       vpcSubnets: {
@@ -135,6 +140,7 @@ export class Api extends Construct {
         NEPTUNE_PORT: cluster.clusterReadEndpoint.port.toString(),
       },
     });
+    this.lambdaFunctionNames["queryFn"] = queryFn.functionName;
     graphql.grantQuery(queryFn);
     queryFn.connections.allowTo(cluster, aws_ec2.Port.tcp(8182));
 
@@ -194,6 +200,7 @@ export class Api extends Construct {
         },
       }
     );
+    this.lambdaFunctionNames["aiQueryFn"] = aiQueryFn.functionName;
     graphql.grantQuery(aiQueryFn);
     aiQueryFn.connections.allowTo(cluster, aws_ec2.Port.tcp(8182));
 
@@ -209,6 +216,7 @@ export class Api extends Construct {
         },
       }
     );
+    this.lambdaFunctionNames["mutationFn"] = mutationFn.functionName;
     graphql.grantMutation(mutationFn);
     mutationFn.connections.allowTo(cluster, aws_ec2.Port.tcp(8182));
 
@@ -242,6 +250,7 @@ export class Api extends Construct {
         allowPublicSubnet: true,
       }
     );
+    this.lambdaFunctionNames["bulkLoadFn"] = bulkLoadFn.functionName;
     bulkLoadFn.connections.allowTo(cluster, aws_ec2.Port.tcp(8182));
 
     const functionUrl = bulkLoadFn.addFunctionUrl({
@@ -260,7 +269,7 @@ export class Api extends Construct {
       let targetFn;
       if (filedName === "askGraph") {
         targetFn = aiQueryFn;
-      } else if (filedName.startsWith("get")) {
+      } else if (filedName.startsWith("get") || filedName.startsWith("search")) {
         targetFn = queryFn;
       } else {
         targetFn = mutationFn;
@@ -273,7 +282,7 @@ export class Api extends Construct {
       // Resolver
       datasource.createResolver(`${filedName}Resolver`, {
         fieldName: `${filedName}`,
-        typeName: filedName.startsWith("get") || filedName.startsWith("ask")
+        typeName: filedName.startsWith("get") || filedName.startsWith("ask") || filedName.startsWith("search")
           ? "Query"
           : "Mutation",
         requestMappingTemplate: MappingTemplate.fromFile(

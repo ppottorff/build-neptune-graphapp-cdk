@@ -1,5 +1,5 @@
 import { Construct } from "constructs";
-import { Duration, aws_cognito } from "aws-cdk-lib";
+import { Duration, aws_cognito, aws_iam } from "aws-cdk-lib";
 export interface CognitoProps {
     adminEmail: string;
     userName?: string;
@@ -13,5 +13,6 @@ export interface CognitoParams {
 export declare class Cognito extends Construct {
     readonly cognitoParams: CognitoParams;
     readonly userPool: aws_cognito.UserPool;
+    readonly authenticatedRole: aws_iam.IRole;
     constructor(scope: Construct, id: string, props: CognitoProps);
 }

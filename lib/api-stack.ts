@@ -21,6 +21,8 @@ interface ApiStackProps extends StackProps {
 export class ApiStack extends Stack {
   public readonly cognito: Cognito;
   public readonly graphqlUrl: string;
+  public readonly graphqlApiId: string;
+  public readonly lambdaFunctionNames: Record<string, string>;
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     const { cognito, vpc, cluster, clusterRole, graphqlFieldName, s3Uri } =
       props;
@@ -40,5 +42,7 @@ export class ApiStack extends Stack {
       s3Uri,
     });
     this.graphqlUrl = api.graphqlUrl;
+    this.graphqlApiId = api.graphqlApiId;
+    this.lambdaFunctionNames = api.lambdaFunctionNames;
   }
 }

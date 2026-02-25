@@ -6,7 +6,6 @@ import {
   ScatterChart,
   MessageSquare,
   CopyPlus,
-  Database,
   LogOut,
   Activity,
 } from "lucide-react";
@@ -45,22 +44,6 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">Dashboard</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="https://us-east-1.console.aws.amazon.com/neptune/home?region=us-east-1#graph-explorer"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-                >
-                  <Database className="h-5 w-5" />
-                  <span className="sr-only">Graph Explorer</span>
-                </a>
-              </TooltipTrigger>
-              <TooltipContent side="right">Graph Explorer</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider>

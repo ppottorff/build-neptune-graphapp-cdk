@@ -54,6 +54,7 @@ export class Bastion extends Construct {
       "bastion-stop-fn",
       {
         runtime: aws_lambda.Runtime.NODEJS_22_X,
+        tracing: aws_lambda.Tracing.ACTIVE,
         entry: path.join(
           __dirname,
           "..",

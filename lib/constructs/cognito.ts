@@ -34,6 +34,7 @@ export interface CognitoParams {
 export class Cognito extends Construct {
   public readonly cognitoParams: CognitoParams;
   public readonly userPool: aws_cognito.UserPool;
+  public readonly authenticatedRole: aws_iam.IRole;
   constructor(scope: Construct, id: string, props: CognitoProps) {
     super(scope, id);
 
@@ -82,6 +83,8 @@ export class Cognito extends Construct {
         ],
       },
     });
+
+    this.authenticatedRole = identityPool.authenticatedRole;
 
     new CreatePoolUser(this, "admin-user", {
       email: props.adminEmail,

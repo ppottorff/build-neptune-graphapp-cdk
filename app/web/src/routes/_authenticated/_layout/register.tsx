@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { useEffect, useRef, useState } from "react";
-import { includes, find, isEmpty } from "lodash-es";
+import { useState, useEffect } from "react";
 import { Icons } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { generateClient } from "aws-amplify/api";
@@ -39,12 +38,11 @@ import { selectEdgeItem, selectVertexItem } from "@/data/data";
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { EdgeItem, ErrorMessage, InsertDataInput } from "@/types/types";
+import { ErrorMessage, InsertDataInput, FieldDefinition } from "@/types/types";
 
 export const Route = createFileRoute("/_authenticated/_layout/register")({
   component: Register,
@@ -65,85 +63,127 @@ const radioGroupValue = [
   },
 ];
 
+/** Return a helpful placeholder for source/destination inputs */
+const getIdentifierPlaceholder = (label: string) => {
+  switch (label) {
+    case "Entity":
+      return "Enter name or company name";
+    case "Asset":
+      return "Enter asset ID (e.g., asset_veh_1)";
+    case "Job":
+      return "Enter job name";
+    case "Part":
+      return "Enter part name";
+    default:
+      return "Enter name or ID";
+  }
+};
+
 function Register() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [value, setValue] = useState("vertex");
-  const [edge, setEdge] = useState("");
-  const [vertex, setVertex] = useState("");
-  const [property, setProperty] = useState("");
-  const name = useRef<HTMLInputElement>(null);
-  const [edgeData, setEdgeData] = useState<EdgeItem>({
-    value: "",
-    description: "",
-    source: "",
-    sourceLabel: "",
-    destination: "",
-    destLabel: "",
-  });
+  const [mode, setMode] = useState("vertex");
+  const [selectedType, setSelectedType] = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
 
-  useEffect(() => {
-    setProperty("");
-    setDestination("");
-    setSource("");
-  }, [vertex, edge]);
-
-  useEffect(() => {
-    setVertex("");
-    setEdge("");
-    setDestination("");
-    setSource("");
-  }, [value]);
   const client = generateClient();
 
-  const handleChange = (curr: string) => {
-    if (value === "vertex") {
-      setVertex(curr);
-    } else {
-      setEdge(curr);
-      const data = find(selectEdgeItem, ["value", curr]);
-      setEdgeData(data!);
-    }
+  // Look up the current type definition
+  const currentVertexType = selectVertexItem.find(
+    (v) => v.value === selectedType
+  );
+  const currentEdgeType = selectEdgeItem.find(
+    (e) => e.value === selectedType
+  );
+  const currentFields: FieldDefinition[] =
+    mode === "vertex"
+      ? currentVertexType?.fields ?? []
+      : currentEdgeType?.fields ?? [];
+
+  // Reset fields when selected type changes
+  useEffect(() => {
+    setFieldValues({});
+    setSource("");
+    setDestination("");
+  }, [selectedType]);
+
+  // Reset everything when mode (vertex/edge) changes
+  useEffect(() => {
+    setSelectedType("");
+    setFieldValues({});
+    setSource("");
+    setDestination("");
+  }, [mode]);
+
+  const updateField = (key: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const onSubmitRegister = async () => {
     setIsLoading(true);
 
     try {
-      const inputName = name.current?.value || "";
-      if (value === "vertex") {
-        if (isEmpty(inputName)) {
+      if (!selectedType) {
+        toast({
+          variant: "destructive",
+          title: "Register error",
+          description: "Please select a type first",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (mode === "vertex") {
+        // Check required fields
+        const missing = currentFields.filter(
+          (f) => f.required && !fieldValues[f.key]
+        );
+        if (missing.length > 0) {
           toast({
             variant: "destructive",
             title: "Register error",
-            description: "No name",
+            description: `${missing[0].label} is required`,
           });
           setIsLoading(false);
           return;
         }
       } else {
-        if (isEmpty(source) || isEmpty(destination)) {
+        if (!source || !destination) {
           toast({
             variant: "destructive",
             title: "Register error",
-            description: "No source or destination",
+            description: "Source and destination are required",
           });
           setIsLoading(false);
           return;
         }
       }
+
+      // Build properties object - convert number fields to actual numbers
+      const properties: Record<string, unknown> = {};
+      for (const field of currentFields) {
+        const val = fieldValues[field.key];
+        if (val !== undefined && val !== "") {
+          if (field.type === "number") {
+            properties[field.key] = Number(val);
+          } else {
+            properties[field.key] = val;
+          }
+        }
+      }
+
       const input: InsertDataInput = {
-        value: value,
-        name: inputName,
-        edge: edge,
-        vertex: vertex,
-        property: property,
-        source: source,
-        sourceLabel: edgeData.sourceLabel,
-        destination: destination,
-        destLabel: edgeData.destLabel,
+        value: mode,
+        vertex: mode === "vertex" ? selectedType : undefined,
+        edge: mode === "edge" ? selectedType : undefined,
+        source: mode === "edge" ? source : undefined,
+        sourceLabel: currentEdgeType?.sourceLabel,
+        destination: mode === "edge" ? destination : undefined,
+        destLabel: currentEdgeType?.destLabel,
+        properties: JSON.stringify(properties),
       };
+
       console.log(input);
       await client.graphql({
         query: registerInfo,
@@ -152,11 +192,12 @@ function Register() {
         },
       });
       toast({
-        title: `Successfully register your ${value}`,
+        title: `Successfully registered ${mode}`,
       });
-      setIsLoading(false);
-      setDestination("");
+      setFieldValues({});
       setSource("");
+      setDestination("");
+      setIsLoading(false);
     } catch (error) {
       const errorMessage = error as ErrorMessage;
       toast({
@@ -179,13 +220,11 @@ function Register() {
           <CardHeader className="flex flex-row items-start">
             <div className="grid gap-0.5">
               <CardTitle className="group flex items-center gap-2 text-lg">
-                Vertex/Edge registration
+                Vertex/Edge Registration
               </CardTitle>
               <CardDescription className="text-start">
-                Select vertex or edge which you would like to register to Amazon
-                Neptune and then select label or edge name. Next input the name
-                for vertex, or input the source name and destination name for
-                edge.
+                Register vertices (Entity, Asset, Job, Part) or edges to Amazon
+                Neptune. Select the type, fill in the properties, and submit.
               </CardDescription>
             </div>
           </CardHeader>
@@ -200,7 +239,7 @@ function Register() {
                       <FormItem className="space-y-3">
                         <FormControl>
                           <RadioGroup
-                            onValueChange={(curr) => setValue(curr)}
+                            onValueChange={(curr) => setMode(curr)}
                             defaultValue="vertex"
                             className="flex flex-col space-y-1"
                           >
@@ -226,26 +265,29 @@ function Register() {
                   <div className="">
                     <div className="grid gap-6">
                       <div className="grid gap-3">
-                        <Select onValueChange={handleChange}>
+                        <Select
+                          value={selectedType}
+                          onValueChange={(val) => setSelectedType(val)}
+                        >
                           <SelectTrigger
                             id="type"
                             aria-label={
-                              value === "vertex"
-                                ? "Select label"
-                                : "Select edge name"
+                              mode === "vertex"
+                                ? "Select vertex label"
+                                : "Select edge type"
                             }
-                            className="w-[240px]"
+                            className="w-[300px]"
                           >
                             <SelectValue
                               placeholder={
-                                value === "vertex"
-                                  ? "Select label"
-                                  : "Select edge name"
+                                mode === "vertex"
+                                  ? "Select vertex label"
+                                  : "Select edge type"
                               }
                             />
                           </SelectTrigger>
                           <SelectContent>
-                            {value == "vertex"
+                            {mode === "vertex"
                               ? selectVertexItem.map((item, index: number) => (
                                   <SelectItem
                                     value={item.value}
@@ -269,52 +311,69 @@ function Register() {
                   </div>
                 </div>
 
-                {value === "vertex" ? (
-                  <div className="flex flex-row py-8 space-x-8">
-                    <Input
-                      id="name"
-                      required={true}
-                      placeholder="Enter Name"
-                      ref={name}
-                      disabled={isLoading}
-                      className="flex basis-1/2"
-                    />
-                    {includes(["person", "paper"], vertex) ? (
-                      <Input
-                        id={vertex === "person" ? "speciality" : "publich date"}
-                        required={true}
-                        placeholder={
-                          vertex === "person"
-                            ? "Enter speciality"
-                            : "Enter publich date"
-                        }
-                        value={property}
-                        onChange={(e) => setProperty(e.target.value)}
-                        disabled={isLoading}
-                        className="flex basis-1/2"
-                      />
-                    ) : (
-                      <></>
+                {/* Dynamic fields based on selected type */}
+                {selectedType && (
+                  <div className="flex flex-col py-8 space-y-4">
+                    {/* Edge: source/destination inputs */}
+                    {mode === "edge" && currentEdgeType && (
+                      <div className="flex flex-row space-x-4">
+                        <Input
+                          placeholder={`Source (${currentEdgeType.sourceLabel}) \u2014 ${getIdentifierPlaceholder(currentEdgeType.sourceLabel)}`}
+                          value={source}
+                          onChange={(e) => setSource(e.target.value)}
+                          disabled={isLoading}
+                          className="flex-1"
+                        />
+                        <Input
+                          placeholder={`Destination (${currentEdgeType.destLabel}) \u2014 ${getIdentifierPlaceholder(currentEdgeType.destLabel)}`}
+                          value={destination}
+                          onChange={(e) => setDestination(e.target.value)}
+                          disabled={isLoading}
+                          className="flex-1"
+                        />
+                      </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="flex flex-row py-8 space-x-8">
-                    <Input
-                      id="source"
-                      required={true}
-                      placeholder="Source"
-                      value={source}
-                      onChange={(e) => setSource(e.target.value)}
-                      disabled={isLoading}
-                    />
-                    <Input
-                      id="destination"
-                      required={true}
-                      placeholder="Destination"
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
-                      disabled={isLoading}
-                    />
+
+                    {/* Render property fields in a grid */}
+                    {currentFields.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {currentFields.map((field) => (
+                          <div key={field.key}>
+                            {field.type === "select" ? (
+                              <Select
+                                value={fieldValues[field.key] || ""}
+                                onValueChange={(val) =>
+                                  updateField(field.key, val)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue
+                                    placeholder={`${field.label}${field.required ? " *" : ""}`}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {field.options?.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                type={field.type === "number" ? "number" : "text"}
+                                placeholder={`${field.label}${field.required ? " *" : ""}${field.placeholder ? " \u2014 " + field.placeholder : ""}`}
+                                value={fieldValues[field.key] || ""}
+                                onChange={(e) =>
+                                  updateField(field.key, e.target.value)
+                                }
+                                disabled={isLoading}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -322,7 +381,7 @@ function Register() {
                   <Button
                     className="items-left"
                     onClick={onSubmitRegister}
-                    disabled={isLoading}
+                    disabled={isLoading || !selectedType}
                   >
                     {isLoading && (
                       <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
@@ -332,39 +391,36 @@ function Register() {
                 </div>
               </form>
             </Form>
-            {value === "edge" ? (
+
+            {/* Edge breadcrumb visualization */}
+            {mode === "edge" && currentEdgeType && (source || destination) ? (
               <div className="flex justify-center py-8">
                 <Breadcrumb className="">
                   <BreadcrumbList>
                     <BreadcrumbItem>
-                      <BreadcrumbLink>
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardDescription>Source</CardDescription>
-                            <CardTitle className="text-2xl">
-                              {edgeData.source} ({edgeData.sourceLabel})
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="text-lg text-muted-foreground">
-                              name:{source}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </BreadcrumbLink>
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardDescription>Source</CardDescription>
+                          <CardTitle className="text-2xl">
+                            {currentEdgeType.sourceLabel}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-lg text-muted-foreground">
+                            {source || "\u2014"}
+                          </div>
+                        </CardContent>
+                      </Card>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                       <Card>
                         <CardHeader className="pb-2">
                           <CardDescription>Edge</CardDescription>
-                          <CardTitle className="text-4xl"></CardTitle>
+                          <CardTitle className="text-lg">
+                            {selectedType}
+                          </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <div className="text-xs text-muted-foreground">
-                            {edge}
-                          </div>
-                        </CardContent>
                       </Card>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
@@ -374,12 +430,12 @@ function Register() {
                           <CardHeader className="pb-2">
                             <CardDescription>Destination</CardDescription>
                             <CardTitle className="text-2xl">
-                              {edgeData.destination} ({edgeData.destLabel})
+                              {currentEdgeType.destLabel}
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <div className="text-lg text-muted-foreground">
-                              name:{destination}
+                              {destination || "\u2014"}
                             </div>
                           </CardContent>
                         </Card>

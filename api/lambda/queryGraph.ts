@@ -6,6 +6,8 @@ import { getUrlAndHeaders } from "gremlin-aws-sigv4/lib/utils";
 const DriverRemoteConnection = gremlin.driver.DriverRemoteConnection;
 const P = gremlin.process.P;
 const traversal = gremlin.process.AnonymousTraversalSource.traversal;
+const __ = gremlin.process.statics;
+const TextP = gremlin.process.TextP;
 export const handler: Handler = async (event) => {
   let conn = null;
   const getConnectionDetails = () => {
@@ -47,6 +49,157 @@ export const handler: Handler = async (event) => {
       conn = createRemoteConnection();
       g = traversal().withRemote(conn);
     }
+
+    // Entity search handlers
+    const searchConfig: Record<string, { label: string; fields: string[]; entityType?: string }> = {
+      Company: { label: 'Entity', fields: ['companyName'], entityType: 'Company' },
+      Customer: { label: 'Entity', fields: ['name'], entityType: 'Customer' },
+      Estimator: { label: 'Entity', fields: ['name'], entityType: 'Estimator' },
+      Jobber: { label: 'Entity', fields: ['companyName'], entityType: 'Jobber' },
+      Asset: { label: 'Asset', fields: ['make', 'model', 'vin'] },
+      Job: { label: 'Job', fields: ['jobName'] },
+      Part: { label: 'Part', fields: ['partName'] },
+    };
+
+    if (event.field === "searchEntities") {
+      const { vertexType, searchValue } = event.arguments;
+      const cfg = searchConfig[vertexType];
+      if (!cfg) throw new Error(`Unknown vertex type: ${vertexType}`);
+
+      let searchQuery = g!.V().hasLabel(cfg.label);
+      if (cfg.entityType) {
+        searchQuery = searchQuery.has('entityTypes', cfg.entityType);
+      }
+
+      // Only apply text filter if searchValue is non-empty
+      const trimmed = (searchValue || '').trim();
+      if (trimmed && trimmed !== '*') {
+        if (cfg.fields.length === 1) {
+          searchQuery = searchQuery.has(cfg.fields[0], TextP.containing(trimmed));
+        } else {
+          searchQuery = searchQuery.or(
+            ...cfg.fields.map((f: string) => __.has(f, TextP.containing(trimmed)))
+          );
+        }
+      }
+
+      const results = await searchQuery
+        .project('id', 'name', 'label', 'entityType')
+        .by(__.id())
+        .by(__.coalesce(
+          __.values('companyName'),
+          __.values('name'),
+          __.values('jobName'),
+          __.values('partName'),
+          __.values('make'),
+          __.constant('Unknown')
+        ))
+        .by(__.label())
+        .by(__.coalesce(__.values('entityTypes'), __.constant('')))
+        .limit(50)
+        .toList();
+
+      return results.map((r: any) => ({
+        id: r.id ?? (r.get ? r.get('id') : undefined),
+        name: r.name ?? (r.get ? r.get('name') : undefined),
+        label: r.label ?? (r.get ? r.get('label') : undefined),
+        entityType: r.entityType || (r.get ? r.get('entityType') : null) || null,
+      }));
+    }
+
+    if (event.field === "getEntityProperties" || event.field === "getEntityEdges") {
+      const { vertexType, searchValue, vertexId: directVertexId } = event.arguments;
+      const cfg = searchConfig[vertexType];
+      if (!cfg) throw new Error(`Unknown vertex type: ${vertexType}`);
+
+      let vertexId = directVertexId;
+      if (!vertexId) {
+        let searchQuery = g!.V().hasLabel(cfg.label);
+        if (cfg.entityType) {
+          searchQuery = searchQuery.has('entityTypes', cfg.entityType);
+        }
+        const trimmedSv = (searchValue || '').trim();
+        if (trimmedSv && trimmedSv !== '*') {
+          if (cfg.fields.length === 1) {
+            searchQuery = searchQuery.has(cfg.fields[0], TextP.containing(trimmedSv));
+          } else {
+            searchQuery = searchQuery.or(
+              ...cfg.fields.map((f: string) => __.has(f, TextP.containing(trimmedSv)))
+            );
+          }
+        }
+        const vertexIds = await searchQuery.id().limit(1).toList();
+        if (vertexIds.length === 0) return [];
+        vertexId = vertexIds[0];
+      }
+
+      if (event.field === "getEntityProperties") {
+        const result = await g!.V(vertexId).valueMap().toList();
+        if (result.length === 0) return [];
+        const vertexMap = result[0];
+        const properties: Array<{ key: string; value: string }> = [];
+        const entries = vertexMap instanceof Map ? Array.from(vertexMap.entries()) : Object.entries(vertexMap);
+        for (const [key, val] of entries) {
+          const propValue = Array.isArray(val) ? String(val[0]) : String(val);
+          if (propValue !== undefined && propValue !== 'undefined' && propValue !== '') {
+            properties.push({ key: String(key), value: propValue });
+          }
+        }
+        return properties;
+      }
+
+      if (event.field === "getEntityEdges") {
+        const outEdges = await g!.V(vertexId)
+          .outE()
+          .project('edgeLabel', 'targetLabel', 'targetName')
+          .by(__.label())
+          .by(__.inV().label())
+          .by(__.inV().coalesce(
+            __.values('companyName'),
+            __.values('name'),
+            __.values('jobName'),
+            __.values('partName'),
+            __.values('make'),
+            __.constant('Unknown')
+          ))
+          .toList();
+
+        const inEdges = await g!.V(vertexId)
+          .inE()
+          .project('edgeLabel', 'targetLabel', 'targetName')
+          .by(__.label())
+          .by(__.outV().label())
+          .by(__.outV().coalesce(
+            __.values('companyName'),
+            __.values('name'),
+            __.values('jobName'),
+            __.values('partName'),
+            __.values('make'),
+            __.constant('Unknown')
+          ))
+          .toList();
+
+        const edges: Array<{ edgeLabel: string; direction: string; targetLabel: string; targetName: string }> = [];
+        for (const e of outEdges) {
+          edges.push({
+            edgeLabel: e.edgeLabel ?? (e.get ? e.get('edgeLabel') : ''),
+            direction: 'outgoing',
+            targetLabel: e.targetLabel ?? (e.get ? e.get('targetLabel') : ''),
+            targetName: e.targetName ?? (e.get ? e.get('targetName') : ''),
+          });
+        }
+        for (const e of inEdges) {
+          edges.push({
+            edgeLabel: e.edgeLabel ?? (e.get ? e.get('edgeLabel') : ''),
+            direction: 'incoming',
+            targetLabel: e.targetLabel ?? (e.get ? e.get('targetLabel') : ''),
+            targetName: e.targetName ?? (e.get ? e.get('targetName') : ''),
+          });
+        }
+        return edges;
+      }
+    }
+
     if (type === "profile") {
       console.log(g);
       let usage;
@@ -257,6 +410,6 @@ export const handler: Handler = async (event) => {
   } catch (error: any) {
     console.log(error);
     console.error(JSON.stringify(error));
-    return { error: error.message };
+    throw error;
   }
 };
