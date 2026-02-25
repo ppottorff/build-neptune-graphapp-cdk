@@ -17,6 +17,8 @@ interface ApiStackProps extends StackProps {
 export declare class ApiStack extends Stack {
     readonly cognito: Cognito;
     readonly graphqlUrl: string;
+    readonly graphqlApiId: string;
+    readonly lambdaFunctionNames: Record<string, string>;
     constructor(scope: Construct, id: string, props: ApiStackProps);
 }
 export {};

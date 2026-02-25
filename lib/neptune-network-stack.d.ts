@@ -18,6 +18,14 @@ interface NeptuneNetworkStackProps extends StackProps {
     neptuneServerlssCapacity?: neptune.ServerlessScalingConfiguration;
     /** Optional schedule to stop/start Neptune during off-hours */
     neptuneSchedule?: NeptuneScheduleConfig;
+    /** Enable a bastion host for remote Neptune access via SSM */
+    bastion?: {
+        enabled: boolean;
+        /** IANA timezone (default: America/Los_Angeles) */
+        timezone?: string;
+        /** Hour to auto-stop the bastion (default: 0 = midnight) */
+        stopHour?: number;
+    };
 }
 export declare class NeptuneNetworkStack extends Stack {
     readonly vpc: aws_ec2.Vpc;

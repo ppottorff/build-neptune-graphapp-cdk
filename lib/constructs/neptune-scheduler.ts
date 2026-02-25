@@ -59,6 +59,7 @@ export class NeptuneScheduler extends Construct {
       "neptune-scheduler-fn",
       {
         runtime: aws_lambda.Runtime.NODEJS_22_X,
+        tracing: aws_lambda.Tracing.ACTIVE,
         entry: path.join(
           __dirname,
           "..",
@@ -155,6 +156,19 @@ export class NeptuneScheduler extends Construct {
       state: "ENABLED",
     });
 
-
+    // Start Neptune at the configured hour (default: 4 PM Pacific)
+    new aws_scheduler.CfnSchedule(this, "start-schedule", {
+      name: "neptune-start-schedule",
+      description: `Start Neptune cluster at ${startHour}:00 ${timezone}`,
+      scheduleExpressionTimezone: timezone,
+      scheduleExpression: `cron(0 ${startHour} * * ? *)`,
+      flexibleTimeWindow: { mode: "OFF" },
+      target: {
+        arn: schedulerFn.functionArn,
+        roleArn: schedulerRole.roleArn,
+        input: JSON.stringify({ action: "start" }),
+      },
+      state: "ENABLED",
+    });
   }
 }

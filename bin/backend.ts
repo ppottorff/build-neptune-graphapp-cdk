@@ -4,6 +4,7 @@ import * as cdk from "aws-cdk-lib";
 import { NeptuneNetworkStack } from "../lib/neptune-network-stack";
 import { ApiStack } from "../lib/api-stack";
 import { WafCloudFrontStack } from "../lib/waf-stack";
+import { ObservabilityStack } from "../lib/observability-stack";
 import { AwsSolutionsChecks } from "cdk-nag";
 
 import { deployConfig } from "../config";
@@ -49,7 +50,7 @@ const neptuneNetwork = new NeptuneNetworkStack(
   }
 );
 
-new ApiStack(app, `${appName}-ApiStack`, {
+const apiStack = new ApiStack(app, `${appName}-ApiStack`, {
   cognito: {
     adminEmail: deployConfig.adminEmail,
   },
@@ -69,3 +70,82 @@ new WafCloudFrontStack(app, `${appName}-WafStack`, {
     region: "us-east-1",
   },
 });
+
+// ── Observability: Dashboard, Alarms, and Cognito read-only policies ──
+const observability = new ObservabilityStack(app, `${appName}-ObservabilityStack`, {
+  neptuneClusterId: neptuneNetwork.cluster.clusterIdentifier,
+  cloudFrontDistributionId: "PLACEHOLDER", // Resolved at deploy via SSM or manual update
+  wafWebAclName: deployConfig.wafParamName,
+  appSyncApiId: apiStack.graphqlApiId,
+  lambdaFunctions: apiStack.lambdaFunctionNames,
+  userPoolId: apiStack.cognito.cognitoParams.userPoolId,
+  env,
+});
+
+// Grant the Cognito authenticated role read-only access for the monitoring UI
+const authRole = apiStack.cognito.authenticatedRole;
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringCloudWatchReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "cloudwatch:GetMetricData",
+      "cloudwatch:GetMetricWidgetImage",
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:GetDashboard",
+      "cloudwatch:ListDashboards",
+      "cloudwatch:ListMetrics",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringEC2ReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceStatus",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringNeptuneReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "rds:DescribeDBClusters",
+      "rds:DescribeDBInstances",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringAppSyncReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: ["appsync:GetGraphqlApi"],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringLambdaReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: ["lambda:GetFunction", "lambda:ListFunctions"],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringXRayReadOnly",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "xray:GetTraceSummaries",
+      "xray:BatchGetTraces",
+      "xray:GetServiceGraph",
+    ],
+    resources: ["*"],
+  })
+);
