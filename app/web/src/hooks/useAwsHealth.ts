@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── AWS Service → RSS feed mapping ─────────────────────────────────
 // Feed IDs sourced from https://health.aws.amazon.com/health/status
@@ -141,10 +141,11 @@ export function useAwsHealth(refreshInterval = 300_000): UseAwsHealthReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
+  const hasFetched = useRef(false);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const isInitial = !hasFetched.current;
+    if (isInitial) setLoading(true);
 
     try {
       const results = await Promise.allSettled(
@@ -174,25 +175,34 @@ export function useAwsHealth(refreshInterval = 300_000): UseAwsHealthReturn {
 
       // Check if ALL failed (likely CORS)
       const allUnknown = resolved.every((s) => s.health === "unknown");
-      if (allUnknown) {
+      if (allUnknown && !hasFetched.current) {
         setError(
           "Unable to reach AWS Status feeds (CORS). Check status manually."
         );
+      } else if (!allUnknown) {
+        setError(null);
       }
 
       setStatuses(resolved);
       setLastChecked(new Date().toLocaleTimeString());
+      hasFetched.current = true;
     } catch (err: any) {
-      setError(err.message ?? "Failed to fetch AWS health data");
+      if (!hasFetched.current) {
+        setError(err.message ?? "Failed to fetch AWS health data");
+      }
+      console.warn("AWS health fetch failed:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    hasFetched.current = false;
     fetchAll();
-    const id = setInterval(fetchAll, refreshInterval);
-    return () => clearInterval(id);
+    if (refreshInterval > 0) {
+      const id = setInterval(fetchAll, refreshInterval);
+      return () => clearInterval(id);
+    }
   }, [fetchAll, refreshInterval]);
 
   return { statuses, loading, error, lastChecked, refresh: fetchAll };

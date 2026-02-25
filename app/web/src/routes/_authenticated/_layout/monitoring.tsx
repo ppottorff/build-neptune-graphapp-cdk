@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   Activity,
   Cloud,
@@ -11,20 +11,16 @@ import {
   HelpCircle,
   AlertTriangle,
   Clock,
-  Zap,
-  Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
 import { Icons } from "@/lib/utils";
 import { MetricChart } from "@/components/monitoring/MetricChart";
 import { AlarmStatusGrid } from "@/components/monitoring/AlarmStatusGrid";
@@ -281,11 +277,11 @@ function Monitoring() {
   const resources = useResourceStatus(
     [BASTION_INSTANCE_ID],
     [NEPTUNE_CLUSTER_ID],
-    60_000
+    0
   );
 
   // ── CloudWatch Alarms ──
-  const alarmsHook = useCloudWatchAlarms(60_000);
+  const alarmsHook = useCloudWatchAlarms(0);
 
   // ── Lambda Metrics ──
   const lambdaInvocationQueries = useMemo(
@@ -295,7 +291,7 @@ function Monitoring() {
   const lambdaInvocations = useCloudWatchMetrics({
     queries: lambdaInvocationQueries,
     hours: 6,
-    refreshInterval: 120_000,
+    refreshInterval: 0,
   });
 
   const lambdaErrorQueries = useMemo(
@@ -305,7 +301,7 @@ function Monitoring() {
   const lambdaErrors = useCloudWatchMetrics({
     queries: lambdaErrorQueries,
     hours: 6,
-    refreshInterval: 120_000,
+    refreshInterval: 0,
   });
 
   const lambdaDurationQueries = useMemo(
@@ -315,7 +311,7 @@ function Monitoring() {
   const lambdaDuration = useCloudWatchMetrics({
     queries: lambdaDurationQueries,
     hours: 6,
-    refreshInterval: 120_000,
+    refreshInterval: 0,
   });
 
   // ── Neptune Metrics ──
@@ -326,7 +322,7 @@ function Monitoring() {
   const neptuneCpu = useCloudWatchMetrics({
     queries: neptuneCpuQueries,
     hours: 6,
-    refreshInterval: 120_000,
+    refreshInterval: 0,
   });
 
   const neptuneCapQueries = useMemo(
@@ -341,11 +337,11 @@ function Monitoring() {
   const neptuneCapacity = useCloudWatchMetrics({
     queries: neptuneCapQueries,
     hours: 6,
-    refreshInterval: 120_000,
+    refreshInterval: 0,
   });
 
   // ── AWS Health Status ──
-  const awsHealth = useAwsHealth(300_000);
+  const awsHealth = useAwsHealth(0);
 
   // ── GitHub Status ──
   const [ghComponents, setGhComponents] = useState<
@@ -353,10 +349,11 @@ function Monitoring() {
   >({});
   const [ghIncidents, setGhIncidents] = useState<GitHubIncident[]>([]);
   const [ghLoading, setGhLoading] = useState(false);
-  const [ghLastChecked, setGhLastChecked] = useState<string | null>(null);
+  const ghFetched = useRef(false);
 
   const fetchGitHubStatus = useCallback(async () => {
-    setGhLoading(true);
+    const isInitial = !ghFetched.current;
+    if (isInitial) setGhLoading(true);
     try {
       const [compRes, incRes] = await Promise.all([
         fetch("https://www.githubstatus.com/api/v2/components.json"),
@@ -373,14 +370,10 @@ function Monitoring() {
       }
       setGhComponents(statusMap);
       setGhIncidents(incData.incidents as GitHubIncident[]);
-      setGhLastChecked(new Date().toLocaleTimeString());
+      ghFetched.current = true;
     } catch (error: any) {
-      console.error("GitHub Status fetch error:", error);
-      toast({
-        variant: "destructive",
-        title: "GitHub Status Error",
-        description: "Could not reach www.githubstatus.com.",
-      });
+      // Only log — don't show disruptive toasts on background refresh failures
+      console.warn("GitHub Status fetch error:", error);
     } finally {
       setGhLoading(false);
     }
@@ -422,15 +415,15 @@ function Monitoring() {
   const neptune = resources.neptuneClusters[0];
 
   return (
-    <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-6">
+    <main className="grid flex-1 items-start gap-3 p-4 sm:px-6 sm:py-0">
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Monitoring Dashboard
+          <h1 className="text-xl font-bold tracking-tight">
+            Monitoring
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Infrastructure status, CloudWatch metrics &amp; alarms
+          <p className="text-xs text-muted-foreground">
+            Infrastructure status, metrics &amp; alarms
           </p>
         </div>
         <Button
@@ -444,231 +437,160 @@ function Monitoring() {
           ) : (
             <RefreshCw className="mr-2 h-4 w-4" />
           )}
-          Refresh All
+          Refresh
         </Button>
       </div>
 
-      {/* ── Section 1: Application Components (live AWS status) ── */}
+      {/* ── Row 1: Resource Status + Alarms ── */}
       <Card>
-        <CardHeader className="bg-muted/50">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Activity className="h-5 w-5" />
-            Application Components
-          </CardTitle>
-          <CardDescription>
-            Live status from AWS EC2 &amp; Neptune APIs
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           {resources.error && (
-            <p className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+            <p className="mb-3 rounded bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-400">
               {resources.error}
             </p>
           )}
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Bastion Host */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Server className="h-5 w-5 text-muted-foreground" />
-                  SSM Bastion Host
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {resources.loading && !bastion ? (
-                  <>
-                    <Skeleton className="h-5 w-3/4 rounded" />
-                    <Skeleton className="h-8 w-24 rounded-full" />
-                  </>
-                ) : bastion ? (
-                  <>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Instance ID
-                      </span>
-                      <code className="break-all rounded bg-muted px-2 py-1 text-xs">
-                        {bastion.instanceId}
-                      </code>
-                    </div>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Type
-                      </span>
-                      <span className="text-sm">{bastion.instanceType}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Status</span>
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr]">
+            {/* Resource status */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Bastion */}
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <Server className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium">SSM Bastion Host</p>
+                  {resources.loading && !bastion ? (
+                    <Skeleton className="mt-1 h-5 w-20 rounded-full" />
+                  ) : bastion ? (
+                    <div className="mt-1 flex items-center gap-2">
                       <EC2StateBadge state={bastion.state} />
+                      <span className="text-[10px] text-muted-foreground">{bastion.instanceType}</span>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Instance not found or access denied
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Not found</span>
+                  )}
+                </div>
+              </div>
 
-            {/* Neptune Cluster */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Database className="h-5 w-5 text-muted-foreground" />
-                  Neptune Cluster
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {resources.loading && !neptune ? (
-                  <>
-                    <Skeleton className="h-5 w-3/4 rounded" />
-                    <Skeleton className="h-8 w-24 rounded-full" />
-                  </>
-                ) : neptune ? (
-                  <>
-                    <div className="grid gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Cluster ID
-                      </span>
-                      <code className="break-all rounded bg-muted px-2 py-1 text-xs">
-                        {neptune.clusterId}
-                      </code>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="grid gap-1">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Engine
-                        </span>
-                        <span className="text-sm">
-                          {neptune.engine} {neptune.engineVersion}
-                        </span>
-                      </div>
-                      {neptune.serverlessV2ScalingMin != null && (
-                        <div className="grid gap-1">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            NCU Range
-                          </span>
-                          <span className="text-sm">
-                            {neptune.serverlessV2ScalingMin} –{" "}
-                            {neptune.serverlessV2ScalingMax}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Status</span>
+              {/* Neptune */}
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <Database className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium">Neptune Cluster</p>
+                  {resources.loading && !neptune ? (
+                    <Skeleton className="mt-1 h-5 w-20 rounded-full" />
+                  ) : neptune ? (
+                    <div className="mt-1 flex items-center gap-2">
                       <NeptuneStateBadge status={neptune.status} />
+                      <span className="text-[10px] text-muted-foreground">
+                        {neptune.engine} {neptune.engineVersion}
+                        {neptune.serverlessV2ScalingMin != null &&
+                          ` · ${neptune.serverlessV2ScalingMin}–${neptune.serverlessV2ScalingMax} NCU`}
+                      </span>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Cluster not found or access denied
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Not found</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <Separator orientation="vertical" className="hidden lg:block" />
+            <Separator className="lg:hidden" />
+
+            {/* Alarms */}
+            <AlarmStatusGrid
+              alarms={alarmsHook.alarms}
+              loading={alarmsHook.loading}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Section 2: CloudWatch Alarms ── */}
-      <AlarmStatusGrid
-        alarms={alarmsHook.alarms}
-        loading={alarmsHook.loading}
-      />
-
-      {/* ── Section 3: Lambda Metrics ── */}
+      {/* ── Row 2: All Metrics (Lambda + Neptune) ── */}
       <Card>
-        <CardHeader className="bg-muted/50">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Zap className="h-5 w-5" />
-            Lambda Metrics
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Activity className="h-4 w-4" />
+            CloudWatch Metrics
+            <span className="text-xs font-normal text-muted-foreground">— last 6 hours</span>
           </CardTitle>
-          <CardDescription>
-            Invocations, errors, and duration over the last 6 hours
-          </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 p-6 md:grid-cols-3">
-          <MetricChart
-            title="Invocations"
-            results={lambdaInvocations.data}
-            loading={lambdaInvocations.loading}
-          />
-          <MetricChart
-            title="Errors"
-            results={lambdaErrors.data}
-            loading={lambdaErrors.loading}
-          />
-          <MetricChart
-            title="Duration (avg)"
-            results={lambdaDuration.data}
-            loading={lambdaDuration.loading}
-            unit="ms"
-          />
-        </CardContent>
-      </Card>
-
-      {/* ── Section 4: Neptune Metrics ── */}
-      <Card>
-        <CardHeader className="bg-muted/50">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Cpu className="h-5 w-5" />
-            Neptune Metrics
-          </CardTitle>
-          <CardDescription>
-            CPU utilization and serverless capacity (NCU) over the last 6 hours
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-          <MetricChart
-            title="CPU Utilization"
-            results={neptuneCpu.data}
-            loading={neptuneCpu.loading}
-            unit="%"
-          />
-          <MetricChart
-            title="Serverless Capacity"
-            description="Neptune Capacity Units (NCU)"
-            results={neptuneCapacity.data}
-            loading={neptuneCapacity.loading}
-            unit=" NCU"
-          />
-        </CardContent>
-      </Card>
-
-      {/* ── Section 5: Cloud Dependencies ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between bg-muted/50">
-          <div className="grid gap-0.5">
-            <CardTitle className="group flex items-center gap-2 text-lg">
-              <Cloud className="h-5 w-5" />
-              Cloud Dependencies
-            </CardTitle>
-            <CardDescription>
-              AWS service health (us-east-1) &amp; GitHub status
-            </CardDescription>
+        <CardContent className="grid gap-4 p-4 pt-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MetricChart
+              title="Lambda Invocations"
+              results={lambdaInvocations.data}
+              loading={lambdaInvocations.loading}
+              height={160}
+              bare
+            />
+            <MetricChart
+              title="Lambda Errors"
+              results={lambdaErrors.data}
+              loading={lambdaErrors.loading}
+              height={160}
+              bare
+            />
+            <MetricChart
+              title="Lambda Duration (avg)"
+              results={lambdaDuration.data}
+              loading={lambdaDuration.loading}
+              unit="ms"
+              yAxisWidth={55}
+              height={160}
+              bare
+            />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MetricChart
+              title="Neptune CPU"
+              results={neptuneCpu.data}
+              loading={neptuneCpu.loading}
+              unit="%"
+              height={160}
+              bare
+            />
+            <MetricChart
+              title="Neptune NCU"
+              description="Serverless Capacity"
+              results={neptuneCapacity.data}
+              loading={neptuneCapacity.loading}
+              unit=" NCU"
+              height={160}
+              bare
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Row 3: Cloud Dependencies (AWS Health + GitHub side-by-side) ── */}
+      <Card>
+        <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Cloud className="h-4 w-4" />
+            Cloud Dependencies
+          </CardTitle>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="h-7 text-xs"
             onClick={() => { awsHealth.refresh(); fetchGitHubStatus(); }}
             disabled={awsHealth.loading || ghLoading}
           >
             {(awsHealth.loading || ghLoading) ? (
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              <Icons.spinner className="mr-1 h-3 w-3 animate-spin" />
             ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className="mr-1 h-3 w-3" />
             )}
             Refresh
           </Button>
         </CardHeader>
-        <CardContent className="p-6">
-          {/* ── AWS Health Status ── */}
-          <div className="mb-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Activity className="h-4 w-4" />
+        <CardContent className="grid gap-4 p-4 pt-2 lg:grid-cols-[3fr_1fr]">
+          {/* AWS Health */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold">
+                <Activity className="h-3.5 w-3.5" />
                 AWS Service Health
                 <span className="text-[10px] font-normal text-muted-foreground">(us-east-1)</span>
               </h3>
@@ -676,16 +598,11 @@ function Monitoring() {
                 href="https://health.aws.amazon.com/health/status"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground underline"
+                className="text-[10px] text-muted-foreground underline"
               >
                 health.aws.amazon.com
               </a>
             </div>
-            {awsHealth.lastChecked && (
-              <p className="mb-3 text-xs text-muted-foreground">
-                Last checked: {awsHealth.lastChecked}
-              </p>
-            )}
             <AwsHealthStatus
               statuses={awsHealth.statuses}
               loading={awsHealth.loading}
@@ -693,110 +610,84 @@ function Monitoring() {
             />
           </div>
 
-          <Separator className="my-5" />
-
-          {/* ── GitHub Status ── */}
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Cloud className="h-4 w-4" />
-              GitHub Status
-            </h3>
-            <a
-              href="https://www.githubstatus.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground underline"
-            >
-              githubstatus.com
-            </a>
-          </div>
-          {ghLastChecked && (
-            <p className="mb-4 text-xs text-muted-foreground">
-              Last checked: {ghLastChecked}
-            </p>
-          )}
-
-          {ghLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-              {Object.keys(TRACKED_COMPONENT_IDS).map((_, idx) => (
-                <Skeleton key={idx} className="h-10 rounded" />
-              ))}
+          {/* GitHub Status */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold">
+                <Cloud className="h-3.5 w-3.5" />
+                GitHub
+              </h3>
+              <a
+                href="https://www.githubstatus.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-muted-foreground underline"
+              >
+                githubstatus.com
+              </a>
             </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-              {Object.entries(TRACKED_COMPONENT_IDS).map(([id, label]) => (
-                <div
-                  key={id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{label}</span>
-                  <GitHubStatusIndicator
-                    status={ghComponents[id] ?? "operational"}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
 
-          {ghIncidents.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-yellow-700 dark:text-yellow-400">
-                <AlertTriangle className="h-4 w-4" />
-                Active Incidents
-              </h4>
-              <div className="grid gap-3">
-                {ghIncidents.map((incident) => {
-                  const latestUpdate = incident.incident_updates?.[0];
-                  return (
-                    <Card
-                      key={incident.id}
-                      className="border-yellow-300 dark:border-yellow-700"
-                    >
-                      <CardContent className="p-4 grid gap-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <a
-                              href={incident.shortlink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-semibold underline"
-                            >
-                              {incident.name}
-                            </a>
-                            <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                              {incident.impact}
-                            </span>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
+            {ghLoading ? (
+              <div className="grid gap-1.5">
+                {Object.keys(TRACKED_COMPONENT_IDS).map((_, idx) => (
+                  <Skeleton key={idx} className="h-7 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                {Object.entries(TRACKED_COMPONENT_IDS).map(([id, label]) => (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between rounded border px-2 py-1"
+                  >
+                    <span className="text-xs">{label}</span>
+                    <GitHubStatusIndicator
+                      status={ghComponents[id] ?? "operational"}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {ghIncidents.length > 0 && (
+              <div className="mt-3">
+                <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-yellow-700 dark:text-yellow-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Active Incidents
+                </h4>
+                <div className="grid gap-2">
+                  {ghIncidents.map((incident) => {
+                    const latestUpdate = incident.incident_updates?.[0];
+                    return (
+                      <div
+                        key={incident.id}
+                        className="rounded border border-yellow-300 p-2 dark:border-yellow-700"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <a
+                            href={incident.shortlink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium underline"
+                          >
+                            {incident.name}
+                          </a>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">
                             {formatDuration(incident.created_at)}
                           </span>
                         </div>
                         {latestUpdate && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">
                             {latestUpdate.body}
                           </p>
                         )}
-                        {incident.components.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {incident.components.map((c) => (
-                              <span
-                                key={c.id}
-                                className="rounded bg-muted px-1.5 py-0.5 text-xs"
-                              >
-                                {c.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     </main>

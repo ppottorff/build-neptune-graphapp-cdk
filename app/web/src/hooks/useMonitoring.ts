@@ -43,25 +43,40 @@ export function useCloudWatchMetrics(opts: UseMetricsOptions): UseMetricsResult 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
+  const hasFetched = useRef(false);
+
+  // Store latest values in refs so fetchData callback is stable
+  const queriesRef = useRef(queries);
+  queriesRef.current = queries;
+  const hoursRef = useRef(hours);
+  hoursRef.current = hours;
 
   const fetchData = useCallback(async () => {
-    if (skip || queries.length === 0) return;
-    setLoading(true);
-    setError(null);
+    if (skip || queriesRef.current.length === 0) return;
+    const isInitial = !hasFetched.current;
+    if (isInitial) setLoading(true);
     try {
       const end = new Date();
-      const start = new Date(end.getTime() - hours * 3600 * 1000);
-      const results = await getMetricData(queries, start, end);
-      if (isMounted.current) setData(results);
+      const start = new Date(end.getTime() - hoursRef.current * 3600 * 1000);
+      const results = await getMetricData(queriesRef.current, start, end);
+      if (isMounted.current) {
+        setData(results);
+        setError(null);
+        hasFetched.current = true;
+      }
     } catch (e: any) {
-      if (isMounted.current) setError(e.message ?? String(e));
+      if (isMounted.current && !hasFetched.current) {
+        setError(e.message ?? String(e));
+      }
+      console.warn("CloudWatch metrics fetch failed:", e);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [queries, hours, skip]);
+  }, [skip]);
 
   useEffect(() => {
     isMounted.current = true;
+    hasFetched.current = false;
     fetchData();
     if (refreshInterval > 0 && !skip) {
       const id = setInterval(fetchData, refreshInterval);
@@ -95,14 +110,23 @@ export function useCloudWatchAlarms(
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
 
+  const hasFetched = useRef(false);
+
   const fetchAlarms = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const isInitial = !hasFetched.current;
+    if (isInitial) setLoading(true);
     try {
       const result = await describeAlarms();
-      if (isMounted.current) setAlarms(result);
+      if (isMounted.current) {
+        setAlarms(result);
+        setError(null);
+        hasFetched.current = true;
+      }
     } catch (e: any) {
-      if (isMounted.current) setError(e.message ?? String(e));
+      if (isMounted.current && !hasFetched.current) {
+        setError(e.message ?? String(e));
+      }
+      console.warn("CloudWatch alarms fetch failed:", e);
     } finally {
       if (isMounted.current) setLoading(false);
     }
@@ -110,6 +134,7 @@ export function useCloudWatchAlarms(
 
   useEffect(() => {
     isMounted.current = true;
+    hasFetched.current = false;
     fetchAlarms();
     if (refreshInterval > 0) {
       const id = setInterval(fetchAlarms, refreshInterval);
@@ -147,31 +172,45 @@ export function useResourceStatus(
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
 
+  const hasFetched = useRef(false);
+
+  // Store latest values in refs so fetchStatus callback is stable
+  const ec2IdsRef = useRef(ec2InstanceIds);
+  ec2IdsRef.current = ec2InstanceIds;
+  const neptuneIdsRef = useRef(neptuneClusterIds);
+  neptuneIdsRef.current = neptuneClusterIds;
+
   const fetchStatus = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const isInitial = !hasFetched.current;
+    if (isInitial) setLoading(true);
     try {
       const [ec2, neptune] = await Promise.all([
-        ec2InstanceIds.length > 0
-          ? describeInstances(ec2InstanceIds)
+        ec2IdsRef.current.length > 0
+          ? describeInstances(ec2IdsRef.current)
           : Promise.resolve([]),
-        neptuneClusterIds.length > 0
-          ? describeNeptuneClusters(neptuneClusterIds)
+        neptuneIdsRef.current.length > 0
+          ? describeNeptuneClusters(neptuneIdsRef.current)
           : Promise.resolve([]),
       ]);
       if (isMounted.current) {
         setEc2(ec2);
         setNeptune(neptune);
+        setError(null);
+        hasFetched.current = true;
       }
     } catch (e: any) {
-      if (isMounted.current) setError(e.message ?? String(e));
+      if (isMounted.current && !hasFetched.current) {
+        setError(e.message ?? String(e));
+      }
+      console.warn("Resource status fetch failed:", e);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [ec2InstanceIds, neptuneClusterIds]);
+  }, []);
 
   useEffect(() => {
     isMounted.current = true;
+    hasFetched.current = false;
     fetchStatus();
     if (refreshInterval > 0) {
       const id = setInterval(fetchStatus, refreshInterval);

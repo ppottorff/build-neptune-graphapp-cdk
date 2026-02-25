@@ -38,10 +38,14 @@ export interface MetricChartProps {
   description?: string;
   results: MetricDataResult[];
   loading?: boolean;
-  /** Height of the chart area in px (default: 200) */
+  /** Height of the chart area in px (default: 160) */
   height?: number;
   /** Unit suffix for the Y-axis (e.g. "%", "ms", "count") */
   unit?: string;
+  /** Custom Y-axis width in px (auto-calculated from unit length if omitted) */
+  yAxisWidth?: number;
+  /** When true, render without a wrapping Card (just title + chart) */
+  bare?: boolean;
 }
 
 interface ChartPoint {
@@ -55,9 +59,13 @@ export function MetricChart({
   description,
   results,
   loading,
-  height = 200,
+  height = 160,
   unit = "",
+  yAxisWidth,
+  bare = false,
 }: MetricChartProps) {
+  // Auto-size Y-axis: base 40px + extra room when a unit suffix is present
+  const computedYAxisWidth = yAxisWidth ?? (unit.length > 2 ? 55 : 45);
   // Merge all MetricDataResults into a single time-aligned dataset
   const { chartData, seriesKeys } = useMemo(() => {
     const timeMap = new Map<number, ChartPoint>();
@@ -86,18 +94,9 @@ export function MetricChart({
     return { chartData: sorted, seriesKeys: keys };
   }, [results]);
 
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {description && (
-          <CardDescription className="text-xs">{description}</CardDescription>
-        )}
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="w-full rounded" style={{ height }} />
-        ) : chartData.length === 0 ? (
+  const chartContent = loading ? (
+    <Skeleton className="w-full rounded" style={{ height }} />
+  ) : chartData.length === 0 ? (
           <div
             className="flex items-center justify-center text-xs text-muted-foreground"
             style={{ height }}
@@ -141,7 +140,7 @@ export function MetricChart({
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                width={40}
+                width={computedYAxisWidth}
                 tickFormatter={(v: number) =>
                   unit ? `${v}${unit}` : String(v)
                 }
@@ -172,8 +171,29 @@ export function MetricChart({
               ))}
             </AreaChart>
           </ResponsiveContainer>
+        );
+
+  if (bare) {
+    return (
+      <div className="rounded-md border p-2">
+        <p className="mb-1 text-xs font-medium">{title}</p>
+        {description && (
+          <p className="mb-1 text-[10px] text-muted-foreground">{description}</p>
         )}
-      </CardContent>
+        {chartContent}
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {description && (
+          <CardDescription className="text-xs">{description}</CardDescription>
+        )}
+      </CardHeader>
+      <CardContent>{chartContent}</CardContent>
     </Card>
   );
 }

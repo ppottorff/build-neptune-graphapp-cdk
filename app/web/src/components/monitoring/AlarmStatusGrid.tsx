@@ -9,13 +9,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { MetricAlarm } from "@/lib/aws-clients";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface AlarmStatusGridProps {
@@ -68,48 +61,43 @@ export function AlarmStatusGrid({ alarms, loading }: AlarmStatusGridProps) {
   const sorted = [...alarming, ...insufficient, ...ok];
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
-          <AlertTriangle className="h-4 w-4" />
-          CloudWatch Alarms
-          {alarming.length > 0 && (
-            <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-400">
-              {alarming.length} in alarm
-            </span>
-          )}
-        </CardTitle>
-        <CardDescription className="text-xs">
-          {alarms.length} alarms configured
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 rounded" />
-            ))}
-          </div>
-        ) : alarms.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No alarms found. Deploy the ObservabilityStack to create them.
-          </p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-            {sorted.map((alarm) => (
-              <div
-                key={alarm.AlarmName}
-                className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${stateBadgeClasses(alarm.StateValue)}`}
-              >
-                {stateIcon(alarm.StateValue)}
-                <span className="truncate font-medium">
-                  {shortLabel(alarm.AlarmName)}
-                </span>
-              </div>
-            ))}
-          </div>
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs font-medium">
+          Application Alarms ({alarms.length})
+        </span>
+        {alarming.length > 0 && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-400">
+            {alarming.length} in alarm
+          </span>
         )}
-      </CardContent>
-    </Card>
+      </div>
+      {loading ? (
+        <div className="flex flex-wrap gap-1.5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-7 w-32 rounded" />
+          ))}
+        </div>
+      ) : alarms.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No alarms found.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {sorted.map((alarm) => (
+            <div
+              key={alarm.AlarmName}
+              className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs ${stateBadgeClasses(alarm.StateValue)}`}
+            >
+              {stateIcon(alarm.StateValue)}
+              <span className="truncate font-medium max-w-[140px]">
+                {shortLabel(alarm.AlarmName)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
