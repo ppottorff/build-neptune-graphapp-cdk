@@ -31,7 +31,7 @@ const neptuneNetwork = new NeptuneNetworkStack(
     neptuneServerlss: true,
     neptuneServerlssCapacity: {
       minCapacity: 1,
-      maxCapacity: 2.5,
+      maxCapacity: 4.5,
     },
     // Stop Neptune 12am–4pm Pacific to save costs
     neptuneSchedule: {
@@ -57,7 +57,7 @@ const apiStack = new ApiStack(app, `${appName}-ApiStack`, {
   vpc: neptuneNetwork.vpc,
   cluster: neptuneNetwork.cluster,
   clusterRole: neptuneNetwork.neptuneRole,
-  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph"],
+  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges"],
   s3Uri: deployConfig.s3Uri,
   env,
 });

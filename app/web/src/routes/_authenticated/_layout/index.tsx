@@ -2,17 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useRef, useState } from "react";
-import { trim } from "lodash-es";
+import { useRef, useState } from "react";
 
 import {
-  BookOpenText,
+  ArrowLeft,
+  ArrowRight,
   Building2,
-  GraduationCap,
-  Heart,
+  Car,
+  Package,
   Search,
-  UserRound,
-  Users,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,9 +35,14 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
-import { Result } from "@/types/types";
+import { EntityProperty, EdgeRelation, SearchResult } from "@/types/types";
 import { Separator } from "@/components/ui/separator";
-import { Icons, queryGetProfile, queryGetRelationName } from "@/lib/utils";
+import {
+  Icons,
+  queryEntityProperties,
+  queryEntityEdges,
+  querySearchEntities,
+} from "@/lib/utils";
 import { radioGroupValue } from "@/data/data";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -52,90 +56,147 @@ const FormSchema = z.object({
   description: z.string(),
 });
 
-function onSubmit(data: z.infer<typeof FormSchema>) {
-  toast({
-    title: "You submitted the following values:",
-    description: (
-      <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-        <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-      </pre>
-    ),
-  });
+const propertyLabels: Record<string, string> = {
+  entityTypes: "Type",
+  companyName: "Company Name",
+  name: "Name",
+  companyType: "Company Type",
+  address: "Address",
+  email: "Email",
+  phone: "Phone",
+  website: "Website",
+  country: "Country",
+  assetType: "Asset Type",
+  make: "Make",
+  model: "Model",
+  year: "Year",
+  vin: "VIN",
+  serialNumber: "Serial Number",
+  brand: "Brand",
+  jobName: "Job Name",
+  jobCategory: "Category",
+  status: "Status",
+  roNumber: "RO Number",
+  partName: "Part Name",
+  partId: "Part ID",
+  retailCost: "Retail Cost",
+};
+
+const edgeLabelMap: Record<string, string> = {
+  WORKS_FOR: "Works For",
+  REQUESTS_WORK: "Requests Work",
+  DOES_WORK_FOR: "Does Work For",
+  OWNS_ASSET: "Owns Asset",
+  MANAGES_JOB: "Manages Job",
+  SERVICE_ON: "Service On",
+  PAYS_FOR: "Pays For",
+  OFFERS_PART: "Offers Part",
+  HAS_LINE_ITEM: "Has Line Item",
+  JOBBER_FOR_JOB: "Jobber For Job",
+};
+
+function getTargetIcon(label: string) {
+  switch (label) {
+    case "Entity":
+      return <Building2 className="h-4 w-4" />;
+    case "Asset":
+      return <Car className="h-4 w-4" />;
+    case "Job":
+      return <Wrench className="h-4 w-4" />;
+    case "Part":
+      return <Package className="h-4 w-4" />;
+    default:
+      return null;
+  }
 }
+
 export function Dashboard() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
   const refName = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("person");
-  const [result, setResult] = useState<
-    Array<{
-      name: string;
-    }>
-  >([]);
-  const [profile, setProfile] = useState<
-    Array<{
-      search_name: string;
-      usage?: string;
-      belong_to?: string;
-      authored_by?: string;
-      affiliated_with?: string;
-      people?: string;
-      made_by?: string | null;
-    }>
-  >([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [value, setValue] = useState("Company");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [selectedResult, setSelectedResult] = useState<SearchResult | null>(
+    null
+  );
+  const [properties, setProperties] = useState<EntityProperty[]>([]);
+  const [edges, setEdges] = useState<EdgeRelation[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const filedChange = (curr: string) => {
+  const selectedOption = radioGroupValue.find((r) => r.value === value);
+
+  const fieldChange = (curr: string) => {
     setValue(curr);
   };
 
-  const executeQuery = async () => {
-    const name = refName.current!.value;
-    if (!name) {
-      return;
-    }
-    setIsLoading(true);
-    getInformation(name);
-    try {
-      const result = await queryGetRelationName(name, value);
+  const executeSearch = async () => {
+    const name = refName.current?.value?.trim() || "";
 
-      setResult(result.data!.getRelationName!);
-      setIsLoading(false);
-      toast({
-        title: `Successfully query`,
-      });
+    setIsSearching(true);
+    setSearchTerm(name);
+    setSelectedResult(null);
+    setProperties([]);
+    setEdges([]);
+
+    try {
+      const result = await querySearchEntities(value, name || undefined);
+      const results = result.data!.searchEntities || [];
+      setSearchResults(results);
+
+      if (results.length === 1) {
+        // Auto-select if only one result
+        await selectResult(results[0]);
+      } else if (results.length === 0) {
+        toast({ title: "No results found" });
+      } else {
+        toast({ title: `Found ${results.length} results` });
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.log(error);
-      setIsLoading(false);
+      console.error(error);
       toast({
         variant: "destructive",
-        title: "Query Error",
-        description: error.errors[0].message,
+        title: "Search Error",
+        description:
+          error.errors?.[0]?.message || error.message || "An error occurred",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const getInformation = async (name: string) => {
+  const selectResult = async (result: SearchResult) => {
+    setSelectedResult(result);
+    setIsLoadingDetail(true);
+
     try {
-      const result = await queryGetProfile(name, value);
-      setProfile(result.data.getProfile);
+      const [propsResult, edgesResult] = await Promise.all([
+        queryEntityProperties(value, searchTerm || undefined, result.id),
+        queryEntityEdges(value, searchTerm || undefined, result.id),
+      ]);
+
+      setProperties(propsResult.data!.getEntityProperties || []);
+      setEdges(edgesResult.data!.getEntityEdges || []);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.log(error);
-      setIsLoading(false);
+      console.error(error);
       toast({
         variant: "destructive",
-        title: "Query Error",
-        description: error.errors[0].message,
+        title: "Error loading details",
+        description:
+          error.errors?.[0]?.message || error.message || "An error occurred",
       });
+    } finally {
+      setIsLoadingDetail(false);
     }
   };
 
-  useEffect(() => {
-    setValue("person");
-  }, []);
+  const outgoingEdges = edges.filter((e) => e.direction === "outgoing");
+  const incomingEdges = edges.filter((e) => e.direction === "incoming");
+
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
       <div className="col-span-2 gap-2 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
@@ -150,7 +211,7 @@ export function Dashboard() {
           <CardContent className="p-6">
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={(e) => e.preventDefault()}
                 className="space-y-6"
               >
                 <FormField
@@ -160,7 +221,7 @@ export function Dashboard() {
                     <FormItem className="space-y-3">
                       <FormControl>
                         <RadioGroup
-                          onValueChange={filedChange}
+                          onValueChange={fieldChange}
                           defaultValue={value}
                           className="flex flex-col space-y-1"
                         >
@@ -186,181 +247,214 @@ export function Dashboard() {
                 />
                 <Input
                   id="name"
-                  required={true}
-                  placeholder="Enter name"
+                  placeholder={
+                    selectedOption?.placeholder || "Leave empty to list all"
+                  }
                   ref={refName}
-                  disabled={isLoading}
+                  disabled={isSearching}
                 />
                 <Button
                   className="items-left"
-                  onClick={executeQuery}
-                  disabled={isLoading}
+                  onClick={executeSearch}
+                  disabled={isSearching}
                 >
-                  {isLoading && (
+                  {isSearching && (
                     <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Submit
+                  Search
                 </Button>
               </form>
             </Form>
           </CardContent>
         </Card>
+
+        {/* Search Results list */}
+        {searchResults.length > 0 && (
+          <Card className="sm:col-span-2 mt-4" x-chunk="dashboard-05-chunk-results">
+            <CardHeader className="flex flex-row items-start bg-muted/50">
+              <div className="grid gap-0.5">
+                <CardTitle className="group flex items-center gap-2 text-lg">
+                  Results
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({searchResults.length} found)
+                  </span>
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid gap-2">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    onClick={() => selectResult(result)}
+                    className={`flex items-center gap-3 rounded-md border p-3 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
+                      selectedResult?.id === result.id
+                        ? "border-primary bg-accent"
+                        : "border-border"
+                    }`}
+                  >
+                    {getTargetIcon(result.label)}
+                    <div className="flex flex-col">
+                      <span className="font-medium text-primary underline underline-offset-2 cursor-pointer">
+                        {result.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {result.entityType
+                          ? `${result.label} / ${result.entityType}`
+                          : result.label}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
       <div className="col-span-1">
         <Card className="flex flex-col" x-chunk="dashboard-05-chunk-1">
           <CardHeader className="flex flex-row items-start bg-muted/50">
             <div className="grid gap-0.5">
               <CardTitle className="group flex items-center gap-2 text-lg">
-                Search Overview
+                Properties
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col p-6 text-sm">
-            {isLoading ? (
-              <>
-                <div className="flex flex-col space-y-3">
-                  <Skeleton className="flex h-[100px] rounded-xl" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                  </div>
+            {isLoadingDetail ? (
+              <div className="flex flex-col space-y-3">
+                <Skeleton className="flex h-[100px] rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="grid gap-3">
-                  <div
-                    className="font-semibold flex flex-row justify-start"
-                    key={"search"}
-                  >
-                    <Search />
-                    <span className="text-muted-foreground px-4 text-base">
-                      {refName.current?.value ? refName.current.value : ""}
-                    </span>
-                  </div>
-
-                  {profile.length !== 0 ? (
-                    profile.map((value, index: number) => (
-                      <div className="grid gap-3" key={index.toString()}>
-                        {value.affiliated_with !== null && (
-                          <>
-                            <Separator />
-                            <div className="flex flex-row justify-start">
-                              <Building2 />
-                              <span className="text-muted-foreground px-4 text-base ">
-                                Institution
-                              </span>
-                            </div>
-                            {trim(value.affiliated_with, "[]")}
-                            <Separator />
-                          </>
-                        )}
-                        {value.usage !== null && (
-                          <>
-                            <div className="flex flex-row justify-start">
-                              <Heart />
-                              <span className="text-muted-foreground px-4 text-base">
-                                Products to use
-                              </span>
-                            </div>
-                            {trim(value.usage, "[]")}
-                            <Separator />
-                          </>
-                        )}
-                        {value.belong_to !== null && (
-                          <>
-                            <div className="flex flex-row justify-start">
-                              <GraduationCap />
-                              <span className="text-muted-foreground px-4 text-base">
-                                Affiliated academic society
-                              </span>
-                            </div>
-                            {trim(value.belong_to, "[]")}
-
-                            <Separator />
-                          </>
-                        )}
-                        {value.authored_by !== null && (
-                          <>
-                            <div className="flex flex-row justify-start">
-                              <BookOpenText />
-                              <span className="text-muted-foreground px-4 text-base">
-                                Paper
-                              </span>
-                            </div>
-                            {trim(value.authored_by, "[]")}
-                            <Separator />
-                          </>
-                        )}
-                        {value.people !== null && (
-                          <>
-                            <div className="flex flex-row justify-start">
-                              <Users />
-                              <span className="text-muted-foreground px-4 text-base">
-                                Academic member
-                              </span>
-                            </div>
-                            {trim(value.people, "[]")}
-                            <Separator />
-                          </>
-                        )}
-                        {value.made_by !== null && (
-                          <>
-                            <div className="flex flex-row justify-start">
-                              <Building2 />
-                              <span className="text-muted-foreground px-4 text-base">
-                                Pharmaceutical company
-                              </span>
-                            </div>
-                            {trim(value.made_by, "[]")}
-                          </>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <></>
-                  )}
+              <div className="grid gap-3">
+                <div
+                  className="font-semibold flex flex-row justify-start"
+                  key="search"
+                >
+                  <Search />
+                  <span className="text-muted-foreground px-4 text-base">
+                    {selectedResult?.name || searchTerm || ""}
+                  </span>
                 </div>
-              </>
+                {properties.length > 0 ? (
+                  <>
+                    <Separator />
+                    {properties.map((prop, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-row justify-between py-1"
+                      >
+                        <span className="text-muted-foreground font-medium">
+                          {propertyLabels[prop.key] || prop.key}
+                        </span>
+                        <span className="text-right">{prop.value}</span>
+                      </div>
+                    ))}
+                  </>
+                ) : selectedResult ? (
+                  <CardDescription className="pt-2">
+                    No properties found
+                  </CardDescription>
+                ) : searchTerm !== "" && searchResults.length > 0 ? (
+                  <CardDescription className="pt-2">
+                    Select a result to view properties
+                  </CardDescription>
+                ) : null}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
       <div className="col-span-3">
-        <Card x-chunk="dashboard-05-chunk-1">
+        <Card x-chunk="dashboard-05-chunk-2">
           <CardHeader className="flex flex-row items-start bg-muted/50">
             <div className="grid gap-0.5">
               <CardTitle className="group flex items-center gap-2 text-lg">
-                Result
+                Relations
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            {isLoading ? (
-              <>
-                <div className="space-y-2">
-                  <Skeleton className="flex h-4" />
-                  <Skeleton className="flex h-4" />
-                </div>
-              </>
-            ) : (
-              <>
-                {result.length !== 0 ? (
-                  <div className="grid gap-3" key="result">
-                    {result.map((data: Result, index: number) => (
-                      <div key={index.toString()}>
-                        <div className="flex flex-row justify-start pb-4">
-                          <UserRound />
-                          <p className="pl-8">{data.name}</p>
-                        </div>
-                        <Separator />
+            {isLoadingDetail ? (
+              <div className="space-y-2">
+                <Skeleton className="flex h-4" />
+                <Skeleton className="flex h-4" />
+              </div>
+            ) : edges.length > 0 ? (
+              <div className="grid gap-4">
+                {outgoingEdges.length > 0 && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <ArrowRight className="h-4 w-4" />
+                      Outgoing Relations
+                    </h3>
+                    <Separator />
+                    {outgoingEdges.map((edge, index) => (
+                      <div
+                        key={`out-${index}`}
+                        className="flex items-center gap-3 py-1"
+                      >
+                        <ArrowRight className="h-4 w-4 text-green-600 shrink-0" />
+                        <span className="font-medium text-sm min-w-[140px]">
+                          {edgeLabelMap[edge.edgeLabel] || edge.edgeLabel}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="flex items-center gap-1.5">
+                          {getTargetIcon(edge.targetLabel)}
+                          <span className="text-muted-foreground text-xs">
+                            {edge.targetLabel}:
+                          </span>
+                          <span className="text-sm">{edge.targetName}</span>
+                        </span>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <CardDescription>No results</CardDescription>
                 )}
-              </>
+                {incomingEdges.length > 0 && (
+                  <div className="grid gap-3">
+                    {outgoingEdges.length > 0 && <Separator />}
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <ArrowLeft className="h-4 w-4" />
+                      Incoming Relations
+                    </h3>
+                    <Separator />
+                    {incomingEdges.map((edge, index) => (
+                      <div
+                        key={`in-${index}`}
+                        className="flex items-center gap-3 py-1"
+                      >
+                        <ArrowLeft className="h-4 w-4 text-blue-600 shrink-0" />
+                        <span className="font-medium text-sm min-w-[140px]">
+                          {edgeLabelMap[edge.edgeLabel] || edge.edgeLabel}
+                        </span>
+                        <span className="text-muted-foreground">←</span>
+                        <span className="flex items-center gap-1.5">
+                          {getTargetIcon(edge.targetLabel)}
+                          <span className="text-muted-foreground text-xs">
+                            {edge.targetLabel}:
+                          </span>
+                          <span className="text-sm">{edge.targetName}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : selectedResult ? (
+              <CardDescription>No relations found</CardDescription>
+            ) : searchResults.length > 0 ? (
+              <CardDescription>
+                Select a result to view relations
+              </CardDescription>
+            ) : (
+              <CardDescription>
+                Search for an entity to view its relations
+              </CardDescription>
             )}
           </CardContent>
         </Card>

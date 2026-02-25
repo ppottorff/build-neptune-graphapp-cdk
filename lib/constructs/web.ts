@@ -76,7 +76,7 @@ export class Web extends Construct {
     });
     origin.addToResourcePolicy(bucketPolicyStatement);
 
-    const bucketOrigin = new aws_cloudfront_origins.S3Origin(origin, {
+    const bucketOrigin = aws_cloudfront_origins.S3BucketOrigin.withOriginAccessIdentity(origin, {
       originAccessIdentity: identity,
     });
 

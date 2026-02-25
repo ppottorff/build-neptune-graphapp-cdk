@@ -269,7 +269,7 @@ export class Api extends Construct {
       let targetFn;
       if (filedName === "askGraph") {
         targetFn = aiQueryFn;
-      } else if (filedName.startsWith("get")) {
+      } else if (filedName.startsWith("get") || filedName.startsWith("search")) {
         targetFn = queryFn;
       } else {
         targetFn = mutationFn;
@@ -282,7 +282,7 @@ export class Api extends Construct {
       // Resolver
       datasource.createResolver(`${filedName}Resolver`, {
         fieldName: `${filedName}`,
-        typeName: filedName.startsWith("get") || filedName.startsWith("ask")
+        typeName: filedName.startsWith("get") || filedName.startsWith("ask") || filedName.startsWith("search")
           ? "Query"
           : "Mutation",
         requestMappingTemplate: MappingTemplate.fromFile(

@@ -5,17 +5,62 @@ export type ErrorMessage = {
   message?: any;
 };
 
-export type EdgeItem = {
+export type FieldDefinition = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "select";
+  required?: boolean;
+  options?: string[];
+  placeholder?: string;
+};
+
+export type VertexTypeItem = {
   value: string;
   description: string;
-  source: string;
+  fields: FieldDefinition[];
+};
+
+export type EdgeTypeItem = {
+  value: string;
+  description: string;
   sourceLabel: string;
-  destination: string;
   destLabel: string;
+  fields: FieldDefinition[];
 };
 
 export type Result = {
   name: string;
+};
+
+export type EntityProperty = {
+  key: string;
+  value: string;
+};
+
+export type EdgeRelation = {
+  edgeLabel: string;
+  direction: string;
+  targetLabel: string;
+  targetName: string;
+};
+
+export type GetEntityPropertiesQuery = {
+  getEntityProperties: EntityProperty[];
+};
+
+export type GetEntityEdgesQuery = {
+  getEntityEdges: EdgeRelation[];
+};
+
+export type SearchResult = {
+  id: string;
+  name: string;
+  label: string;
+  entityType: string | null;
+};
+
+export type SearchEntitiesQuery = {
+  searchEntities: SearchResult[];
 };
 
 export type InsertDataInput = {
@@ -28,6 +73,7 @@ export type InsertDataInput = {
   sourceLabel?: string;
   destination?: string;
   destLabel?: string;
+  properties?: string;
 };
 
 export type Graph = {

@@ -21,7 +21,7 @@ function ChatPage() {
     {
       role: "assistant",
       content:
-        "Hello! I can help you explore your graph data using natural language. Try asking questions like:\n\n• \"Who are all the people in the graph?\"\n• \"What products does Doctor1 use?\"\n• \"How many nodes are in the graph?\"\n• \"What types of relationships exist?\"",
+        "Hello! I can help you explore your graph data using natural language. Try asking questions like:\n\n• \"Which collision shops are in Seattle?\"\n• \"What jobs is Elite Collision Center managing?\"\n• \"Show me all vehicles owned by John Smith\"\n• \"Which jobbers supply parts for open jobs?\"\n• \"What assets have PPF service jobs?\"",
       timestamp: new Date(),
     },
   ]);

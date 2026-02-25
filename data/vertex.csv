@@ -1,28 +1,95 @@
-~id, name:String, speciality:String, publish_date:String, ~label
-Doctor1,"John","psychosomatic medicine", ,person
-Doctor2,"Bob","respiratory medicine", ,person
-Doctor3,"Alice","gastroenterology", ,person
-Doctor4,"Terry","neurology", ,person
-Doctor5,"Ken","cardiology", ,person
-Doctor6,"Peter","neurology", ,person
-MR1,"Mashiko", , ,person
-MR2,"Koizumi", , ,person
-MR3,"Ishio", , ,person
-Paper1,"Example1", ,"2000-05-13",paper
-Paper2,"Example2", ,"2005-01-20",paper
-Paper3,"Example3", ,"2010-06-20",paper
-Paper4,"Example4", ,"2018-11-13",paper
-Paper5,"Example5", ,"2020-08-13",paper
-Prod1,"A medicine", , ,product
-Prod2,"B medicine", , ,product
-Prod3,"C medicine", , ,product
-Prod4,"D medicine", , ,product
-Prod5,"E medicine", , ,product
-Conf1,"X conference", , ,conference
-Conf2,"Y conference", , ,conference
-Conf3,"Z conference", , ,conference
-Inst1,"A hospital", , ,institution
-Inst2,"B hospital", , ,institution
-Inst3,"C Univ", , ,institution
-Inst4,"A pharma", , ,institution
-Inst5,"B pharma", , ,institution
+~id,~label,address:String,assetType:String,boatType:String,brand:String,carrier:String,companyName:String,companyType:String,country:String,createdDate:String,email:String,entityTypes:String,equipmentType:String,hullId:String,imei:String,jobCategory:String,jobName:String,lengthFt:Double,make:String,model:String,name:String,partId:String,partName:String,payerType:String,phone:String,phoneNumber:String,retailCost:Double,roNumber:String,rvClass:String,serialNumber:String,squareFeet:Int,status:String,statusDate:String,vin:String,website:String,year:Int,yearBuilt:Int
+entity_co_1,Entity,"4521 Aurora Ave N, Seattle, WA 98103",,,,,Elite Collision Center,CollisionShop,US,,info@elitecollision.com,Company,,,,,,,,,,,,,206-555-0101,,,,,,,,,,https://www.elitecollision.com,,
+entity_co_2,Entity,"1200 NE 45th St, Seattle, WA 98105",,,,,Metro Auto Body,CollisionShop,US,,service@metroautobody.com,Company,,,,,,,,,,,,,206-555-0102,,,,,,,,,,https://www.metroautobody.com,,
+entity_co_3,Entity,"8900 Pacific Hwy S, Tacoma, WA 98444",,,,,Evergreen Auto Rebuild,CollisionShop,US,,shop@evergreenrebuild.com,Company,,,,,,,,,,,,,253-555-0201,,,,,,,,,,https://www.evergreenrebuild.com,,
+entity_co_4,Entity,"3101 Rainier Ave S, Seattle, WA 98144",,,,,Rainier Collision Group,CollisionShop,US,,repairs@rainiercollision.com,Company,,,,,,,,,,,,,206-555-0104,,,,,,,,,,https://www.rainiercollision.com,,
+entity_co_5,Entity,"720 SE Everett Mall Way, Everett, WA 98208",,,,,Cascade Auto Works,CollisionShop,US,,hello@cascadeautoworks.com,Company,,,,,,,,,,,,,425-555-0301,,,,,,,,,,,,
+entity_co_6,Entity,"15200 Aurora Ave N, Shoreline, WA 98133",,,,,Soundview Collision,CollisionShop,US,,front.desk@soundviewcollision.com,Company,,,,,,,,,,,,,206-555-0106,,,,,,,,,,https://www.soundviewcollision.com,,
+entity_co_7,Entity,"600 Occidental Ave S, Seattle, WA 98134",,,,,Apex Auto Repair,CollisionShop,US,,service@apexautorepair.com,Company,,,,,,,,,,,,,206-555-0107,,,,,,,,,,https://www.apexautorepair.com,,
+entity_co_8,Entity,"2201 W Commodore Way, Seattle, WA 98199",,,,,Harbor Auto Body,CollisionShop,US,,info@harborautobody.com,Company,,,,,,,,,,,,,206-555-0108,,,,,,,,,,,,
+entity_co_9,Entity,"9450 Firdale Ave, Edmonds, WA 98020",,,,,Northwest Auto Restorations,CollisionShop,US,,restore@nwautorest.com,Company,,,,,,,,,,,,,425-555-0401,,,,,,,,,,https://www.nwautorest.com,,
+entity_co_10,Entity,"1455 NW Leary Way, Seattle, WA 98107",,,,,Pacific Rim Collision,CollisionShop,US,,shop@pacificrimcollision.com,Company,,,,,,,,,,,,,206-555-0110,,,,,,,,,,https://www.pacificrimcollision.com,,
+entity_cu_1,Entity,"742 Elm St, Seattle, WA 98102",,,,,,,US,,david.ramirez@gmail.com,Customer,,,,,,,,,David Ramirez,,,,206-555-1001,,,,,,,,,,,,
+entity_cu_2,Entity,"1085 Pine St Apt 4B, Seattle, WA 98101",,,,,,,US,,sarah.kim@outlook.com,Customer,,,,,,,,,Sarah Kim,,,,206-555-1002,,,,,,,,,,,,
+entity_cu_3,Entity,"3300 Industrial Blvd, Tacoma, WA 98421",,,,,Brooks Fleet Services,,US,,mbrooks@brooksfleet.com,Customer,,,,,,,,,Michael Brooks,,,,253-555-1003,,,,,,,,,,https://www.brooksfleet.com,,
+entity_cu_4,Entity,"221 Baker St NW, Olympia, WA 98502",,,,,,,US,,jmoore84@yahoo.com,Customer,,,,,,,,,Jessica Moore,,,,360-555-1004,,,,,,,,,,,,
+entity_cu_5,Entity,"5678 Greenwood Ave N, Seattle, WA 98103",,,,,Diaz Landscaping,,US,,robert@diazlandscaping.com,Customer,,,,,,,,,Robert Diaz,,,,206-555-1005,,,,,,,,,,https://www.diazlandscaping.com,,
+entity_cu_6,Entity,"890 Mercer Island Way, Mercer Island, WA 98040",,,,,,,US,,amanda.lewis@icloud.com,Customer,,,,,,,,,Amanda Lewis,,,,206-555-1006,,,,,,,,,,,,
+entity_cu_7,Entity,"4100 E Marginal Way S, Seattle, WA 98134",,,,,Grant Construction LLC,,US,,sgrant@grantconstruction.com,Customer,,,,,,,,,Steven Grant,,,,206-555-1007,,,,,,,,,,https://www.grantconstruction.com,,
+entity_cu_8,Entity,"1920 Alki Ave SW, Seattle, WA 98116",,,,,,,US,,daniel.ortiz@protonmail.com,Customer,,,,,,,,,Daniel Ortiz,,,,206-555-1008,,,,,,,,,,,,
+entity_cu_9,Entity,"123 Main St, Seattle, WA 98101",,,,,,,US,,tyler.young@gmail.com,Customer,,,,,,,,,Tyler Young,,,,206-555-1009,,,,,,,,,,,,
+entity_cu_10,Entity,"7700 Seaview Ave NW, Seattle, WA 98117",,,,,Chen Marine Group,,US,,karen@chenmarine.com,Customer,,,,,,,,,Karen Chen,,,,206-555-1010,,,,,,,,,,https://www.chenmarine.com,,
+entity_cu_11,Entity,"456 Lakeview Dr, Bellevue, WA 98004",,,,,,,US,,james.nakamura@hotmail.com,Customer,,,,,,,,,James Nakamura,,,,425-555-1011,,,,,,,,,,,,
+entity_cu_12,Entity,"2250 Mountain Loop Hwy, Granite Falls, WA 98252",,,,,Gonzalez Outdoor Adventures,,US,,maria@gonzalezoutdoors.com,Customer,,,,,,,,,Maria Gonzalez,,,,360-555-1012,,,,,,,,,,https://www.gonzalezoutdoors.com,,
+entity_es_1,Entity,"310 Eastlake Ave E, Seattle, WA 98109",,,,,,,US,,sarah.mitchell@elitecollision.com,Estimator,,,,,,,,,Sarah Mitchell,,,,206-555-2001,,,,,,,,,,,,
+entity_es_2,Entity,"805 Madison St, Seattle, WA 98104",,,,,,,US,,mark.benson@metroautobody.com,Estimator,,,,,,,,,Mark Benson,,,,206-555-2002,,,,,,,,,,,,
+entity_es_3,Entity,"4402 S Yakima Ave, Tacoma, WA 98418",,,,,,,US,,lisa.tran@evergreenrebuild.com,Estimator,,,,,,,,,Lisa Tran,,,,253-555-2003,,,,,,,,,,,,
+entity_es_4,Entity,"1501 E Olive Way, Seattle, WA 98122",,,,,,,US,,tony.alvarez@rainiercollision.com,Estimator,,,,,,,,,Tony Alvarez,,,,206-555-2004,,,,,,,,,,,,
+entity_es_5,Entity,"225 Cedar St, Everett, WA 98201",,,,,,,US,,hannah.lee@cascadeautoworks.com,Estimator,,,,,,,,,Hannah Lee,,,,425-555-2005,,,,,,,,,,,,
+entity_es_6,Entity,"1900 N 145th St, Shoreline, WA 98133",,,,,,,US,,derek.shaw@soundviewcollision.com,Estimator,,,,,,,,,Derek Shaw,,,,206-555-2006,,,,,,,,,,,,
+entity_es_7,Entity,"422 Yale Ave N, Seattle, WA 98109",,,,,,,US,,brian.cole@apexautorepair.com,Estimator,,,,,,,,,Brian Cole,,,,206-555-2007,,,,,,,,,,,,
+entity_es_8,Entity,"3015 W Government Way, Seattle, WA 98199",,,,,,,US,,emily.park@harborautobody.com,Estimator,,,,,,,,,Emily Park,,,,206-555-2008,,,,,,,,,,,,
+entity_es_9,Entity,"780 Dayton St, Edmonds, WA 98020",,,,,,,US,,carlos.medina@nwautorest.com,Estimator,,,,,,,,,Carlos Medina,,,,425-555-2009,,,,,,,,,,,,
+entity_es_10,Entity,"2800 NW Market St, Seattle, WA 98107",,,,,,,US,,rachel.adams@pacificrimcollision.com,Estimator,,,,,,,,,Rachel Adams,,,,206-555-2010,,,,,,,,,,,,
+entity_jb_1,Entity,"6100 4th Ave S, Seattle, WA 98108",,,,,Northwest PPF Solutions,,US,,orders@nwppf.com,Jobber,,,,,,,,,,,,,206-555-3001,,,,,,,,,,https://www.nwppf.com,,
+entity_jb_2,Entity,"3455 Carillon Point, Kirkland, WA 98033",,,,,Precision Film Installers,,US,,sales@precisionfilm.com,Jobber,,,,,,,,,,,,,425-555-3002,,,,,,,,,,https://www.precisionfilm.com,,
+entity_jb_3,Entity,"11020 E Montgomery Dr, Spokane, WA 99206",,,,,ArmorShield Films,,US,,info@armorshieldfilms.com,Jobber,,,,,,,,,,,,,509-555-3003,,,,,,,,,,https://www.armorshieldfilms.com,,
+entity_jb_4,Entity,"820 W 1st Ave, Vancouver, BC V5Y 3N3",,,,,ClearGuard Pro,,CA,,support@clearguardpro.ca,Jobber,,,,,,,,,,,,,604-555-3004,,,,,,,,,,https://www.clearguardpro.ca,,
+entity_jb_5,Entity,"2900 SE Powell Blvd, Portland, OR 97202",,,,,Summit PPF Supply,,US,,orders@summitppf.com,Jobber,,,,,,,,,,,,,503-555-3005,,,,,,,,,,https://www.summitppf.com,,
+entity_mr_1,Entity,"1650 Harbor Ave SW, Seattle, WA 98126",,,,,ProTech Film & Install,PPFInstaller,US,,info@protechfilm.com,Jobber;Company,,,,,,,,,,,,,206-555-3006,,,,,,,,,,https://www.protechfilm.com,,
+asset_v_1,Asset,,Vehicle,,,,,,,,,,,,,,,,Ford,F-150 Lightning,,,,,,,,,,,,,,1FTVW1EL2PWG12345,,2024,
+asset_v_2,Asset,,Vehicle,,,,,,,,,,,,,,,,Tesla,Model Y,,,,,,,,,,,,,,5YJYGDEE7PF123456,,2023,
+asset_v_3,Asset,,Vehicle,,,,,,,,,,,,,,,,BMW,X5,,,,,,,,,,,,,,5UXCR6C05N9F12345,,2022,
+asset_v_4,Asset,,Vehicle,,,,,,,,,,,,,,,,Toyota,Tacoma,,,,,,,,,,,,,,3TMCZ5AN5MM123456,,2021,
+asset_v_5,Asset,,Vehicle,,,,,,,,,,,,,,,,Chevrolet,Silverado,,,,,,,,,,,,,,1GCUDDED8RZ123456,,2024,
+asset_v_6,Asset,,Vehicle,,,,,,,,,,,,,,,,Subaru,Outback,,,,,,,,,,,,,,4S4BTACC5P3123456,,2023,
+asset_v_7,Asset,,Vehicle,,,,,,,,,,,,,,,,Honda,CR-V,,,,,,,,,,,,,,2HKRS4H59NH123456,,2022,
+asset_v_8,Asset,,Vehicle,,,,,,,,,,,,,,,,Rivian,R1T,,,,,,,,,,,,,,7FCTGAAA1SN123456,,2025,
+asset_v_9,Asset,,Vehicle,,,,,,,,,,,,,,,,Audi,Q7,,,,,,,,,,,,,,WA1LJAF74ND123456,,2022,
+asset_v_10,Asset,,Vehicle,,,,,,,,,,,,,,,,Jeep,Wrangler,,,,,,,,,,,,,,1C4HJXDN1MW123456,,2021,
+asset_v_11,Asset,,Vehicle,,,,,,,,,,,,,,,,BMW,iX,,,,,,,,,,,,,,WBY73AW09R7123456,,2024,
+asset_v_12,Asset,,Vehicle,,,,,,,,,,,,,,,,Tesla,Model 3,,,,,,,,,,,,,,5YJ3E1EA8RF123456,,2024,
+asset_b_1,Asset,,Boat,Center Console,,,,,,,,,,BWCE2201J425,,,,25,Boston Whaler,Outrage 250,,,,,,,,,,,,,,,,2024,
+asset_b_2,Asset,,Boat,Cruiser,,,,,,,,,,SERV7821K324,,,,32,Sea Ray,Sundancer 320,,,,,,,,,,,,,,,,2023,
+asset_js_1,Asset,,JetSki,,,,,,,,,,,KAW44281H223,,,,,Kawasaki,Ultra 310X,,,,,,,,,,,,,,,,2023,
+asset_js_2,Asset,,JetSki,,,,,,,,,,,YDV14592F324,,,,,Yamaha,FX Cruiser SVHO,,,,,,,,,,,,,,,,2024,
+asset_cm_1,Asset,,Camper,,,,,,,,,,,,,,,20,Airstream,Basecamp 20X,,,,,,,,,,,,,,1STTBBLM3NJ123456,,2022,
+asset_rv_1,Asset,,RV,,,,,,,,,,,,,,,25,Winnebago,View 24D,,,,,,,,,C,,,,,5B4MP67GX83123456,,2023,
+asset_ph_1,Asset,,Phone,,Apple,Verizon,,,,,,,,,353456789012345,,,,,iPhone 16 Pro,,,,,,206-555-0147,,,,,,,,,,,
+asset_eq_1,Asset,,Equipment,,DeWalt,,,,,,,,Power Tool,,,,,,,DCD999B,,,,,,,,,,SN-DW4492810,,,,,,,
+asset_hm_1,Asset,"123 Main St, Seattle, WA 98101",Home,,,,,,,,,,,,,,,,,,,,,,,,,,,,2200,,,,,,1985
+job_1,Job,,,,,,,,,2026-02-12,,,,,,PPF,Front Bumper PPF Replacement,,,,,,,Insurance,,,,RO-102938,,,,Draft,2026-02-12,,,,
+job_2,Job,,,,,,,,,2026-02-14,,,,,,PPF,Hood PPF Install,,,,,,,Insurance,,,,RO-102939,,,,Approved,2026-02-15,,,,
+job_3,Job,,,,,,,,,2026-02-15,,,,,,PPF,Mirror Cap Replacement,,,,,,,Insurance,,,,RO-204811,,,,Scheduled,2026-02-16,,,,
+job_4,Job,,,,,,,,,2026-02-10,,,,,,PPF,Front Fender PPF,,,,,,,Insurance,,,,RO-330112,,,,Approved,2026-02-11,,,,
+job_5,Job,,,,,,,,,2026-02-13,,,,,,PPF,Full Hood PPF,,,,,,,Insurance,,,,RO-778201,,,,Scheduled,2026-02-15,,,,
+job_6,Job,,,,,,,,,2026-02-16,,,,,,PPF,Door Edge Protection,,,,,,,Customer,,,,RO-550921,,,,Scheduled,2026-02-16,,,,
+job_7,Job,,,,,,,,,2026-02-17,,,,,,PPF,Partial Hood PPF,,,,,,,Customer,,,,RO-550922,,,,Draft,2026-02-17,,,,
+job_8,Job,,,,,,,,,2026-02-12,,,,,,PPF,Rocker Panel Protection,,,,,,,Insurance,,,,RO-667410,,,,Approved,2026-02-13,,,,
+job_9,Job,,,,,,,,,2026-02-18,,,,,,PPF,Front Clip Protection,,,,,,,Insurance,,,,RO-990441,,,,Draft,2026-02-18,,,,
+job_10,Job,,,,,,,,,2026-02-11,,,,,,PPF,Mirror Cap PPF,,,,,,,Customer,,,,RO-441288,,,,Scheduled,2026-02-12,,,,
+job_11,Job,,,,,,,,,2026-02-09,,,,,,PPF,Front Bumper PPF,,,,,,,Insurance,,,,RO-884220,,,,Approved,2026-02-10,,,,
+job_12,Job,,,,,,,,,2026-02-20,,,,,,PPF,Full Front PPF,,,,,,,Insurance,,,,RO-112501,,,,Draft,2026-02-20,,,,
+job_13,Job,,,,,,,,,2026-02-21,,,,,,PPF,Rear Bumper PPF,,,,,,,Customer,,,,RO-112502,,,,Draft,2026-02-21,,,,
+job_14,Job,,,,,,,,,2026-02-19,,,,,,PPF,Boat Hull Protection,,,,,,,Customer,,,,RO-334401,,,,Approved,2026-02-20,,,,
+job_15,Job,,,,,,,,,2026-02-22,,,,,,PPF,JetSki Nose Guard,,,,,,,Customer,,,,RO-334402,,,,Scheduled,2026-02-23,,,,
+part_1,Part,,,,,,,,,,,,,,,,,,,,,jb1_front_bumper,Front Bumper,,,,950,,,,,,,,,,
+part_2,Part,,,,,,,,,,,,,,,,,,,,,jb1_hood,Hood,,,,780,,,,,,,,,,
+part_3,Part,,,,,,,,,,,,,,,,,,,,,jb1_left_headlight,Left Headlight,,,,200,,,,,,,,,,
+part_4,Part,,,,,,,,,,,,,,,,,,,,,jb1_right_headlight,Right Headlight,,,,210,,,,,,,,,,
+part_5,Part,,,,,,,,,,,,,,,,,,,,,jb1_left_fender,Left Fender,,,,480,,,,,,,,,,
+part_6,Part,,,,,,,,,,,,,,,,,,,,,jb2_left_mirror_cap,Left Mirror Cap,,,,180,,,,,,,,,,
+part_7,Part,,,,,,,,,,,,,,,,,,,,,jb2_right_mirror_cap,Right Mirror Cap,,,,180,,,,,,,,,,
+part_8,Part,,,,,,,,,,,,,,,,,,,,,jb2_door_edge_kit,Door Edge Kit,,,,150,,,,,,,,,,
+part_9,Part,,,,,,,,,,,,,,,,,,,,,jb2_hood,Hood,,,,450,,,,,,,,,,
+part_10,Part,,,,,,,,,,,,,,,,,,,,,jb3_left_fender,Left Fender,,,,420,,,,,,,,,,
+part_11,Part,,,,,,,,,,,,,,,,,,,,,jb3_right_fender,Right Fender,,,,420,,,,,,,,,,
+part_12,Part,,,,,,,,,,,,,,,,,,,,,jb3_left_rocker_panel,Left Rocker Panel,,,,310,,,,,,,,,,
+part_13,Part,,,,,,,,,,,,,,,,,,,,,jb3_right_rocker_panel,Right Rocker Panel,,,,310,,,,,,,,,,
+part_14,Part,,,,,,,,,,,,,,,,,,,,,jb3_front_bumper,Front Bumper,,,,880,,,,,,,,,,
+part_15,Part,,,,,,,,,,,,,,,,,,,,,jb3_left_headlight,Left Headlight,,,,210,,,,,,,,,,
+part_16,Part,,,,,,,,,,,,,,,,,,,,,jb1_right_fender,Right Fender,,,,480,,,,,,,,,,
+part_17,Part,,,,,,,,,,,,,,,,,,,,,jb4_full_front_kit,Full Front Kit,,,,2400,,,,,,,,,,
+part_18,Part,,,,,,,,,,,,,,,,,,,,,jb4_rear_bumper,Rear Bumper,,,,650,,,,,,,,,,
+part_19,Part,,,,,,,,,,,,,,,,,,,,,jb5_boat_hull_film,Boat Hull Film (per ft),,,,85,,,,,,,,,,
+part_20,Part,,,,,,,,,,,,,,,,,,,,,jb5_jetski_nose_guard,JetSki Nose Guard,,,,350,,,,,,,,,,
