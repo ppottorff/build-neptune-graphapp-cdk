@@ -33,12 +33,11 @@ const neptuneNetwork = new NeptuneNetworkStack(
       minCapacity: 1,
       maxCapacity: 4.5,
     },
-    // Stop Neptune 12am–4pm Pacific to save costs
+    // Stop Neptune at midnight Pacific to save costs
     neptuneSchedule: {
       enabled: true,
       timezone: "America/Los_Angeles",
       stopHour: 0,   // midnight Pacific — cluster stops
-      startHour: 16,  // 4pm Pacific — cluster starts
     },
     // Bastion host for remote Neptune access via SSM
     bastion: {

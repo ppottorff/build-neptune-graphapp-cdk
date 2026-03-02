@@ -15,8 +15,6 @@ interface NeptuneScheduleConfig {
   timezone?: string;
   /** Hour to stop the cluster (default: 0 = midnight) */
   stopHour?: number;
-  /** Hour to start the cluster (default: 16 = 4pm) */
-  startHour?: number;
 }
 
 interface NeptuneNetworkStackProps extends StackProps {
@@ -83,7 +81,6 @@ export class NeptuneNetworkStack extends Stack {
         cluster: this.cluster,
         timezone: neptuneSchedule.timezone,
         stopHour: neptuneSchedule.stopHour,
-        startHour: neptuneSchedule.startHour,
       });
     }
 

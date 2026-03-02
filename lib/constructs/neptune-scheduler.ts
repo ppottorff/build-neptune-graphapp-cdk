@@ -20,8 +20,6 @@ interface NeptuneSchedulerProps extends StackProps {
   timezone?: string;
   /** Cron hour (0-23) to stop the cluster in the given timezone (default: 0 = midnight) */
   stopHour?: number;
-  /** Cron hour (0-23) to start the cluster in the given timezone (default: 16 = 4pm) */
-  startHour?: number;
 }
 
 export class NeptuneScheduler extends Construct {
@@ -32,7 +30,6 @@ export class NeptuneScheduler extends Construct {
       cluster,
       timezone = "America/Los_Angeles",
       stopHour = 0,
-      startHour = 16,
     } = props;
 
     // The L2 cluster doesn't expose clusterIdentifier directly on the type,
@@ -156,19 +153,6 @@ export class NeptuneScheduler extends Construct {
       state: "ENABLED",
     });
 
-    // Start Neptune at the configured hour (default: 4 PM Pacific)
-    new aws_scheduler.CfnSchedule(this, "start-schedule", {
-      name: "neptune-start-schedule",
-      description: `Start Neptune cluster at ${startHour}:00 ${timezone}`,
-      scheduleExpressionTimezone: timezone,
-      scheduleExpression: `cron(0 ${startHour} * * ? *)`,
-      flexibleTimeWindow: { mode: "OFF" },
-      target: {
-        arn: schedulerFn.functionArn,
-        roleArn: schedulerRole.roleArn,
-        input: JSON.stringify({ action: "start" }),
-      },
-      state: "ENABLED",
-    });
+
   }
 }
