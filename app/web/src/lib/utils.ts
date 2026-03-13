@@ -1,4 +1,5 @@
-import { getGraph, getProfile, getRelationName, askGraph, getEntityProperties, getEntityEdges, searchEntities, searchProjects } from "@/api/appsync/query";
+import { getGraph, getProfile, getRelationName, askGraph, getEntityProperties, getEntityEdges, searchEntities, searchProjects, getProjectAccounts } from "@/api/appsync/query";
+import { addProjectAccountMutation, deleteProjectAccountMutation } from "@/api/appsync/mutation";
 import {
   GetGraphQuery,
   GetRelationNameQuery,
@@ -8,6 +9,9 @@ import {
   GetEntityEdgesQuery,
   SearchEntitiesQuery,
   SearchProjectsQuery,
+  GetProjectAccountsQuery,
+  AddProjectAccountMutation,
+  DeleteProjectAccountMutation,
 } from "@/types/types";
 import { GraphQLResult, generateClient } from "aws-amplify/api";
 import { type ClassValue, clsx } from "clsx";
@@ -107,4 +111,31 @@ export const querySearchProjects = async (searchValue?: string) => {
     query: searchProjects,
     variables: { searchValue: searchValue ?? '' },
   })) as GraphQLResult<SearchProjectsQuery>;
+};
+
+export const queryProjectAccounts = async (projectName: string) => {
+  return (await generateClient().graphql({
+    query: getProjectAccounts,
+    variables: { projectName },
+  })) as GraphQLResult<GetProjectAccountsQuery>;
+};
+
+export const mutateAddProjectAccount = async (input: {
+  projectName: string;
+  Account_Name: string;
+  Account_Id: string;
+  Cloud: string;
+  Environments: string;
+}) => {
+  return (await generateClient().graphql({
+    query: addProjectAccountMutation,
+    variables: { input },
+  })) as GraphQLResult<AddProjectAccountMutation>;
+};
+
+export const mutateDeleteProjectAccount = async (accountId: string) => {
+  return (await generateClient().graphql({
+    query: deleteProjectAccountMutation,
+    variables: { accountId },
+  })) as GraphQLResult<DeleteProjectAccountMutation>;
 };

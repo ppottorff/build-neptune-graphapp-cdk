@@ -136,3 +136,23 @@ export interface ProjectData {
 export type SearchProjectsQuery = {
   searchProjects: ProjectData[];
 };
+
+export interface Account {
+  id: string;
+  Account_Name: string;
+  Account_Id: string;
+  Cloud: string;
+  Environments: string;
+}
+
+export type GetProjectAccountsQuery = {
+  getProjectAccounts: Account[];
+};
+
+export type AddProjectAccountMutation = {
+  addProjectAccount: Account;
+};
+
+export type DeleteProjectAccountMutation = {
+  deleteProjectAccount: { result: string };
+};

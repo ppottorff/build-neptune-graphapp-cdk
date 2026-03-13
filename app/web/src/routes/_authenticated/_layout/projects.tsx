@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useRef } from "react";
-import { FolderOpen } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -20,6 +21,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { querySearchProjects } from "@/lib/utils";
 import { ProjectData } from "@/types/types";
 import { toast } from "@/components/ui/use-toast";
+import { ProjectDetailDrawer } from "@/components/ProjectDetailDrawer";
+
+const PAGE_SIZE = 10;
 
 export const Route = createFileRoute("/_authenticated/_layout/projects")({
   component: ProjectsPage,
@@ -29,19 +33,37 @@ function ProjectsPage() {
   const [searchValue, setSearchValue] = useState("");
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(projects.length / PAGE_SIZE)),
+    [projects.length]
+  );
+
+  const paginatedProjects = useMemo(
+    () =>
+      projects.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE
+      ),
+    [projects, currentPage]
+  );
 
   const fetchProjects = async (value: string) => {
     setIsLoading(true);
     try {
       const result = await querySearchProjects(value || undefined);
       setProjects(result.data?.searchProjects ?? []);
+      setCurrentPage(1);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
-        title: "Error loading projects",
+        title: "Error loading business services",
         description:
           error?.errors?.[0]?.message || error?.message || "An error occurred",
       });
@@ -79,14 +101,14 @@ function ProjectsPage() {
           <div className="grid gap-0.5">
             <CardTitle className="group flex items-center gap-2 text-lg">
               <FolderOpen className="h-5 w-5" />
-              Projects
+              Business Services
             </CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-6">
           <div className="mb-4">
             <Input
-              placeholder="Search projects by name..."
+              placeholder="Search business services by name..."
               value={searchValue}
               onChange={handleSearchChange}
               className="max-w-sm"
@@ -102,32 +124,81 @@ function ProjectsPage() {
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <FolderOpen className="h-10 w-10 mb-2 opacity-40" />
-              <p>No projects found</p>
+              <p>No business services found</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Team</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projects.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell className="font-medium">
-                      {project.projectName}
-                    </TableCell>
-                    <TableCell>{project.DepartmentNumber ?? "—"}</TableCell>
-                    <TableCell>{project.Team ?? "—"}</TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Business Service</TableHead>
+                    <TableHead>Owner Group</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedProjects.map((project) => (
+                    <TableRow key={project.id}>
+                      <TableCell className="font-medium">
+                        <button
+                          className="text-left text-primary underline underline-offset-4 hover:text-primary/80 transition-colors"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setDrawerOpen(true);
+                          }}
+                        >
+                          {project.projectName}
+                        </button>
+                      </TableCell>
+                      <TableCell>{project.OwnerGroup ?? "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing{" "}
+                  {(currentPage - 1) * PAGE_SIZE + 1}–
+                  {Math.min(currentPage * PAGE_SIZE, projects.length)} of{" "}
+                  {projects.length} business services
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
+
+      <ProjectDetailDrawer
+        project={selectedProject}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </main>
   );
 }

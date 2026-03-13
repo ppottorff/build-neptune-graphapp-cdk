@@ -40,6 +40,53 @@ export const handler: Handler = async (event) => {
 
   let g;
   const id = gremlin.process.t.id;
+
+  try {
+    if (conn == null) {
+      console.info("Initializing connection");
+      conn = createRemoteConnection();
+      g = traversal().withRemote(conn);
+    }
+
+    // ── Account mutations ──
+    if (event.field === "addProjectAccount") {
+      const { projectName, Account_Name, Account_Id, Cloud, Environments } = event.arguments.input;
+      const accountVertexId = `account_${Date.now()}`;
+
+      // Create the Account vertex
+      await g!.addV('Account')
+        .property(id, accountVertexId)
+        .property('Account_Name', Account_Name)
+        .property('Account_Id', Account_Id)
+        .property('Cloud', Cloud)
+        .property('Environments', Environments)
+        .next();
+
+      // Create owned_by edge from Account → Project_Data
+      await g!.V(accountVertexId)
+        .addE('owned_by')
+        .to(__.V().hasLabel('Project_Data').has('projectName', projectName))
+        .next();
+
+      console.log("Created account:", accountVertexId, "linked to project:", projectName);
+      return {
+        id: accountVertexId,
+        Account_Name,
+        Account_Id,
+        Cloud,
+        Environments,
+      };
+    }
+
+    if (event.field === "deleteProjectAccount") {
+      const { accountId } = event.arguments;
+      // Drop the vertex and all its edges
+      await g!.V(accountId).drop().next();
+      console.log("Deleted account vertex:", accountId);
+      return { result: "deleted" };
+    }
+
+    // ── Generic insertData mutations ──
   const {
     value,
     edge,
@@ -54,13 +101,6 @@ export const handler: Handler = async (event) => {
   // Parse properties JSON (new generic approach)
   const props: Record<string, unknown> =
     propertiesJson ? JSON.parse(propertiesJson) : {};
-
-  try {
-    if (conn == null) {
-      console.info("Initializing connection");
-      conn = createRemoteConnection();
-      g = traversal().withRemote(conn);
-    }
 
     switch (value) {
       case "vertex": {

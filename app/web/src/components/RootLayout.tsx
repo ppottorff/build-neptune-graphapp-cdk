@@ -111,10 +111,10 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
                 >
                   <FolderKanban className="h-5 w-5" />
-                  <span className="sr-only">Projects</span>
+                  <span className="sr-only">Business Services</span>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">Projects</TooltipContent>
+              <TooltipContent side="right">Business Services</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </nav>

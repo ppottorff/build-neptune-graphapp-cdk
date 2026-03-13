@@ -114,7 +114,7 @@ export const handler: Handler = async (event) => {
 
       let searchQuery = g!.V().hasLabel('Project_Data');
       if (trimmed) {
-        searchQuery = searchQuery.has('projectName', TextP.startingWith(trimmed));
+        searchQuery = searchQuery.has('projectName', TextP.containing(trimmed));
       }
 
       const results = await searchQuery
@@ -139,6 +139,31 @@ export const handler: Handler = async (event) => {
         OwnerGroup: r.OwnerGroup ?? (r.get ? r.get('OwnerGroup') : ''),
         Recovery: r.Recovery ?? (r.get ? r.get('Recovery') : ''),
         Tier: r.Tier ?? (r.get ? r.get('Tier') : ''),
+      }));
+    }
+
+    if (event.field === "getProjectAccounts") {
+      const { projectName } = event.arguments;
+
+      const results = await g!.V()
+        .hasLabel('Project_Data')
+        .has('projectName', projectName)
+        .in_('owned_by')
+        .hasLabel('Account')
+        .project('id', 'Account_Name', 'Account_Id', 'Cloud', 'Environments')
+        .by(__.id())
+        .by(__.coalesce(__.values('Account_Name'), __.constant('')))
+        .by(__.coalesce(__.values('Account_Id'), __.constant('')))
+        .by(__.coalesce(__.values('Cloud'), __.constant('')))
+        .by(__.coalesce(__.values('Environments'), __.constant('')))
+        .toList();
+
+      return results.map((r: any) => ({
+        id: r.id ?? (r.get ? r.get('id') : undefined),
+        Account_Name: r.Account_Name ?? (r.get ? r.get('Account_Name') : ''),
+        Account_Id: r.Account_Id ?? (r.get ? r.get('Account_Id') : ''),
+        Cloud: r.Cloud ?? (r.get ? r.get('Cloud') : ''),
+        Environments: r.Environments ?? (r.get ? r.get('Environments') : ''),
       }));
     }
 

@@ -90,3 +90,15 @@ export const searchProjects = /* GraphQL */ `
     }
   }
 `;
+
+export const getProjectAccounts = /* GraphQL */ `
+  query getProjectAccounts($projectName: String!) {
+    getProjectAccounts(projectName: $projectName) {
+      id
+      Account_Name
+      Account_Id
+      Cloud
+      Environments
+    }
+  }
+`;

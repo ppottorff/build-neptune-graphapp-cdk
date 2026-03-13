@@ -67,6 +67,14 @@ type ProjectData {
   Tier: String
 }
 
+type Account {
+  id: String!
+  Account_Name: String!
+  Account_Id: String!
+  Cloud: String!
+  Environments: String!
+}
+
 ############################### Inputs ###############################
 input InsertDataInput {
   value: String!
@@ -97,8 +105,20 @@ type Query {
     @aws_cognito_user_pools
   getEntityEdges(vertexType: String!, searchValue: String, vertexId: String): [EdgeRelation]
     @aws_cognito_user_pools
+  getProjectAccounts(projectName: String!): [Account]
+    @aws_cognito_user_pools
 }
+input AddAccountInput {
+  projectName: String!
+  Account_Name: String!
+  Account_Id: String!
+  Cloud: String!
+  Environments: String!
+}
+
 ############################### Mutations ###############################
 type Mutation {
   insertData(input: InsertDataInput!): InsertDataResult @aws_cognito_user_pools
+  addProjectAccount(input: AddAccountInput!): Account @aws_cognito_user_pools
+  deleteProjectAccount(accountId: String!): InsertDataResult @aws_cognito_user_pools
 }

@@ -18,10 +18,14 @@ import {
   EC2Client,
   DescribeInstancesCommand,
   DescribeInstanceStatusCommand,
+  StartInstancesCommand,
+  StopInstancesCommand,
 } from "@aws-sdk/client-ec2";
 import {
   NeptuneClient,
   DescribeDBClustersCommand,
+  StartDBClusterCommand,
+  StopDBClusterCommand,
 } from "@aws-sdk/client-neptune";
 
 export type {
@@ -119,6 +123,16 @@ export async function describeInstanceStatus(instanceIds: string[]) {
   return resp.InstanceStatuses ?? [];
 }
 
+export async function startInstance(instanceId: string): Promise<void> {
+  const ec2 = await makeClient(EC2Client);
+  await ec2.send(new StartInstancesCommand({ InstanceIds: [instanceId] }));
+}
+
+export async function stopInstance(instanceId: string): Promise<void> {
+  const ec2 = await makeClient(EC2Client);
+  await ec2.send(new StopInstancesCommand({ InstanceIds: [instanceId] }));
+}
+
 // ─── Neptune (via RDS) helpers ─────────────────────────────────────────
 
 export interface NeptuneClusterInfo {
@@ -130,6 +144,16 @@ export interface NeptuneClusterInfo {
   readerEndpoint: string;
   serverlessV2ScalingMin?: number;
   serverlessV2ScalingMax?: number;
+}
+
+export async function startNeptuneCluster(clusterId: string): Promise<void> {
+  const neptune = await makeClient(NeptuneClient);
+  await neptune.send(new StartDBClusterCommand({ DBClusterIdentifier: clusterId }));
+}
+
+export async function stopNeptuneCluster(clusterId: string): Promise<void> {
+  const neptune = await makeClient(NeptuneClient);
+  await neptune.send(new StopDBClusterCommand({ DBClusterIdentifier: clusterId }));
 }
 
 export async function describeNeptuneClusters(

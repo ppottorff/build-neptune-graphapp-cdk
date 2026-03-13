@@ -56,7 +56,7 @@ const apiStack = new ApiStack(app, `${appName}-ApiStack`, {
   vpc: neptuneNetwork.vpc,
   cluster: neptuneNetwork.cluster,
   clusterRole: neptuneNetwork.neptuneRole,
-  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges"],
+  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges", "searchProjects", "getProjectAccounts", "addProjectAccount", "deleteProjectAccount"],
   s3Uri: deployConfig.s3Uri,
   env,
 });
@@ -111,11 +111,33 @@ authRole.addToPrincipalPolicy(
 );
 authRole.addToPrincipalPolicy(
   new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringEC2StartStop",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "ec2:StartInstances",
+      "ec2:StopInstances",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
     sid: "MonitoringNeptuneReadOnly",
     effect: cdk.aws_iam.Effect.ALLOW,
     actions: [
       "rds:DescribeDBClusters",
       "rds:DescribeDBInstances",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringNeptuneStartStop",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "rds:StartDBCluster",
+      "rds:StopDBCluster",
     ],
     resources: ["*"],
   })

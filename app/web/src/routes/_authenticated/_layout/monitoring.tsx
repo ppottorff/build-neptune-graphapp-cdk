@@ -11,6 +11,9 @@ import {
   HelpCircle,
   AlertTriangle,
   Clock,
+  Play,
+  Square,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +35,12 @@ import {
 } from "@/hooks/useMonitoring";
 import { useAwsHealth } from "@/hooks/useAwsHealth";
 import type { MetricDataQuery } from "@/lib/aws-clients";
+import {
+  startInstance,
+  stopInstance,
+  startNeptuneCluster,
+  stopNeptuneCluster,
+} from "@/lib/aws-clients";
 
 export const Route = createFileRoute("/_authenticated/_layout/monitoring")({
   component: Monitoring,
@@ -414,6 +423,47 @@ function Monitoring() {
   );
   const neptune = resources.neptuneClusters[0];
 
+  // ── Start / Stop controls ──
+  const [bastionActionLoading, setBastionActionLoading] = useState(false);
+  const [neptuneActionLoading, setNeptuneActionLoading] = useState(false);
+
+  const handleBastionToggle = useCallback(async () => {
+    if (!bastion) return;
+    setBastionActionLoading(true);
+    try {
+      if (bastion.state === "running") {
+        await stopInstance(BASTION_INSTANCE_ID);
+      } else {
+        await startInstance(BASTION_INSTANCE_ID);
+      }
+      // Brief delay then refresh to show transitional state
+      await new Promise((r) => setTimeout(r, 1500));
+      resources.refresh();
+    } catch (err: any) {
+      console.error("Bastion toggle error:", err);
+    } finally {
+      setBastionActionLoading(false);
+    }
+  }, [bastion, resources]);
+
+  const handleNeptuneToggle = useCallback(async () => {
+    if (!neptune) return;
+    setNeptuneActionLoading(true);
+    try {
+      if (neptune.status === "available") {
+        await stopNeptuneCluster(NEPTUNE_CLUSTER_ID);
+      } else {
+        await startNeptuneCluster(NEPTUNE_CLUSTER_ID);
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+      resources.refresh();
+    } catch (err: any) {
+      console.error("Neptune toggle error:", err);
+    } finally {
+      setNeptuneActionLoading(false);
+    }
+  }, [neptune, resources]);
+
   return (
     <main className="grid flex-1 items-start gap-3 p-4 sm:px-6 sm:py-0">
       {/* ── Header ── */}
@@ -468,6 +518,24 @@ function Monitoring() {
                     <span className="text-[10px] text-muted-foreground">Not found</span>
                   )}
                 </div>
+                {bastion && (
+                  <Button
+                    variant={bastion.state === "running" ? "destructive" : "default"}
+                    size="sm"
+                    className="shrink-0 h-7 px-2.5 text-xs"
+                    disabled={bastionActionLoading || !["running", "stopped"].includes(bastion.state)}
+                    onClick={handleBastionToggle}
+                  >
+                    {bastionActionLoading ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    ) : bastion.state === "running" ? (
+                      <Square className="mr-1.5 h-3 w-3" />
+                    ) : (
+                      <Play className="mr-1.5 h-3 w-3" />
+                    )}
+                    {bastion.state === "running" ? "Stop" : "Start"}
+                  </Button>
+                )}
               </div>
 
               {/* Neptune */}
@@ -490,6 +558,24 @@ function Monitoring() {
                     <span className="text-[10px] text-muted-foreground">Not found</span>
                   )}
                 </div>
+                {neptune && (
+                  <Button
+                    variant={neptune.status === "available" ? "destructive" : "default"}
+                    size="sm"
+                    className="shrink-0 h-7 px-2.5 text-xs"
+                    disabled={neptuneActionLoading || !["available", "stopped"].includes(neptune.status)}
+                    onClick={handleNeptuneToggle}
+                  >
+                    {neptuneActionLoading ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    ) : neptune.status === "available" ? (
+                      <Square className="mr-1.5 h-3 w-3" />
+                    ) : (
+                      <Play className="mr-1.5 h-3 w-3" />
+                    )}
+                    {neptune.status === "available" ? "Stop" : "Start"}
+                  </Button>
+                )}
               </div>
             </div>
 
