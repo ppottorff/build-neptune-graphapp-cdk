@@ -25,3 +25,35 @@ export const deleteProjectAccountMutation = /* GraphQL */ `
     }
   }
 `;
+
+export const submitFeedbackMutation = /* GraphQL */ `
+  mutation submitFeedback($input: FeedbackInput!) {
+    submitFeedback(input: $input) {
+      id
+      submittedBy
+      presentation
+      vendor
+      presenter
+      venue
+      comments
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const updateFeedbackMutation = /* GraphQL */ `
+  mutation updateFeedback($input: UpdateFeedbackInput!) {
+    updateFeedback(input: $input) {
+      id
+      submittedBy
+      presentation
+      vendor
+      presenter
+      venue
+      comments
+      createdAt
+      updatedAt
+    }
+  }
+`;

@@ -12,6 +12,17 @@ These properties in details are as follows.
 | webBucketsRemovalPolicy | Removal policy for S3 buckets                                                             | `RemovalPolicy`                | `RemovalPolicy.DESTROY`                         |
 | s3Uri                   | S3 URI of `vertex.csv` and `edge.csv` which you stored in.                                | { edge: string,vertex: string} | `{edge: "EDGE_S3_URI",vertex: "VERTEX_S3_URI"}` |
 
+## Neptune Serverless Capacity
+
+The Neptune Serverless cluster scales between `minCapacity` (1 NCU) and `maxCapacity` (8 NCU) by default. Override via `neptuneServerlssCapacity` in the backend stack props.
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `minCapacity` | `1` NCU | Minimum Neptune Capacity Units |
+| `maxCapacity` | `8` NCU | Maximum Neptune Capacity Units (raised from 2.5 after capacity alarm — March 2026) |
+
+The **NeptuneCapacityAlarm** fires when `ServerlessDatabaseCapacity` averages ≥ **6 NCU** (75% of max) across 3 consecutive 5-minute periods. If the alarm triggers again, consider raising `maxCapacity` to the next Neptune Serverless tier (32 NCU).
+
 ## Parameter Store Configuration
 
 ### Neptune Notification Emails

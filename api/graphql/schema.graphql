@@ -75,6 +75,18 @@ type Account {
   Environments: String!
 }
 
+type Feedback {
+  id: String!
+  submittedBy: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+  createdAt: String!
+  updatedAt: String
+}
+
 ############################### Inputs ###############################
 input InsertDataInput {
   value: String!
@@ -107,6 +119,7 @@ type Query {
     @aws_cognito_user_pools
   getProjectAccounts(projectName: String!): [Account]
     @aws_cognito_user_pools
+  getFeedback(submittedBy: String!): [Feedback] @aws_cognito_user_pools
 }
 input AddAccountInput {
   projectName: String!
@@ -116,9 +129,29 @@ input AddAccountInput {
   Environments: String!
 }
 
+input FeedbackInput {
+  submittedBy: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+}
+
+input UpdateFeedbackInput {
+  id: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+}
+
 ############################### Mutations ###############################
 type Mutation {
   insertData(input: InsertDataInput!): InsertDataResult @aws_cognito_user_pools
   addProjectAccount(input: AddAccountInput!): Account @aws_cognito_user_pools
   deleteProjectAccount(accountId: String!): InsertDataResult @aws_cognito_user_pools
+  submitFeedback(input: FeedbackInput!): Feedback @aws_cognito_user_pools
+  updateFeedback(input: UpdateFeedbackInput!): Feedback @aws_cognito_user_pools
 }

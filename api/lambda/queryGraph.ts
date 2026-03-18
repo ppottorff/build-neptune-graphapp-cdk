@@ -167,6 +167,39 @@ export const handler: Handler = async (event) => {
       }));
     }
 
+    if (event.field === "getFeedback") {
+      const { submittedBy } = event.arguments;
+
+      const results = await g!.V()
+        .hasLabel('Feedback')
+        .has('submittedBy', submittedBy)
+        .project('id', 'submittedBy', 'presentation', 'vendor', 'presenter', 'venue', 'comments', 'createdAt', 'updatedAt')
+        .by(__.id())
+        .by(__.coalesce(__.values('submittedBy'), __.constant('')))
+        .by(__.coalesce(__.values('presentation'), __.constant(0)))
+        .by(__.coalesce(__.values('vendor'), __.constant(0)))
+        .by(__.coalesce(__.values('presenter'), __.constant(0)))
+        .by(__.coalesce(__.values('venue'), __.constant(0)))
+        .by(__.coalesce(__.values('comments'), __.constant('')))
+        .by(__.coalesce(__.values('createdAt'), __.constant('')))
+        .by(__.coalesce(__.values('updatedAt'), __.constant('')))
+        .toList();
+
+      return results
+        .map((r: any) => ({
+          id: r.id ?? (r.get ? r.get('id') : undefined),
+          submittedBy: r.submittedBy ?? (r.get ? r.get('submittedBy') : ''),
+          presentation: r.presentation ?? (r.get ? r.get('presentation') : 0),
+          vendor: r.vendor ?? (r.get ? r.get('vendor') : 0),
+          presenter: r.presenter ?? (r.get ? r.get('presenter') : 0),
+          venue: r.venue ?? (r.get ? r.get('venue') : 0),
+          comments: r.comments ?? (r.get ? r.get('comments') : ''),
+          createdAt: r.createdAt ?? (r.get ? r.get('createdAt') : ''),
+          updatedAt: r.updatedAt ?? (r.get ? r.get('updatedAt') : ''),
+        }))
+        .sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    }
+
     if (event.field === "getEntityProperties" || event.field === "getEntityEdges") {
       const { vertexType, searchValue, vertexId: directVertexId } = event.arguments;
       const cfg = searchConfig[vertexType];

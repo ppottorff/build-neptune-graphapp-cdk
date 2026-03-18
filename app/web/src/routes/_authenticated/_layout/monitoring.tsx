@@ -40,6 +40,10 @@ import {
   stopInstance,
   startNeptuneCluster,
   stopNeptuneCluster,
+  createBastionInstance,
+  getSsmParameter,
+  describeInstances,
+  describeNeptuneClusters,
 } from "@/lib/aws-clients";
 
 export const Route = createFileRoute("/_authenticated/_layout/monitoring")({
@@ -47,7 +51,7 @@ export const Route = createFileRoute("/_authenticated/_layout/monitoring")({
 });
 
 // ─── Known resource identifiers ──────────────────────────────────────
-const BASTION_INSTANCE_ID = "i-0b4bd9e067ac8b605";
+const BASTION_SSM_PARAM = "/graphApp/bastion/instance-id";
 const NEPTUNE_CLUSTER_ID = "neptunedbcluster-j3qjzckxw91y";
 
 /** Actual deployed Lambda function names (from CloudFormation outputs) */
@@ -120,6 +124,10 @@ function EC2StateBadge({ state }: { state: string }) {
     pending: {
       color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
       icon: Clock,
+    },
+    terminated: {
+      color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+      icon: XCircle,
     },
   };
   const info = map[state] ?? {
@@ -282,12 +290,65 @@ function neptuneMetricQuery(
 // ─── Main component ──────────────────────────────────────────────────
 
 function Monitoring() {
+  // ── Dynamic bastion instance ID (polled from SSM every 5s until resolved) ──
+  const [bastionInstanceId, setBastionInstanceId] = useState<string | null>(null);
+  const [bastionSsmLoaded, setBastionSsmLoaded] = useState(false);
+  const [bastionSsmError, setBastionSsmError] = useState<string | null>(null);
+  const bastionSsmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bastionSsmAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    const tryFetch = async () => {
+      bastionSsmAttemptsRef.current += 1;
+      try {
+        const id = await getSsmParameter(BASTION_SSM_PARAM);
+        // null = ParameterNotFound — no instance tracked, stop polling
+        if (id) setBastionInstanceId(id);
+        setBastionSsmLoaded(true);
+        setBastionSsmError(null);
+        if (bastionSsmIntervalRef.current) {
+          clearInterval(bastionSsmIntervalRef.current);
+          bastionSsmIntervalRef.current = null;
+        }
+      } catch (err: any) {
+        setBastionSsmError(err?.message ?? String(err));
+        // After 3 attempts give up waiting — show Create button so user isn't stuck
+        if (bastionSsmAttemptsRef.current >= 3) {
+          setBastionSsmLoaded(true);
+          if (bastionSsmIntervalRef.current) {
+            clearInterval(bastionSsmIntervalRef.current);
+            bastionSsmIntervalRef.current = null;
+          }
+        }
+      }
+    };
+
+    tryFetch();
+    bastionSsmIntervalRef.current = setInterval(tryFetch, 5000);
+    return () => {
+      if (bastionSsmIntervalRef.current) {
+        clearInterval(bastionSsmIntervalRef.current);
+        bastionSsmIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   // ── Resource status (EC2 + Neptune) ──
   const resources = useResourceStatus(
-    [BASTION_INSTANCE_ID],
+    bastionInstanceId ? [bastionInstanceId] : [],
     [NEPTUNE_CLUSTER_ID],
     0
   );
+
+  // Re-fetch EC2 status once SSM resolves the instance ID (the hook only
+  // runs once on mount, so it sees an empty array when bastionInstanceId is null)
+  const resourcesRefreshRef = useRef(resources.refresh);
+  resourcesRefreshRef.current = resources.refresh;
+  useEffect(() => {
+    if (bastionInstanceId) {
+      resourcesRefreshRef.current();
+    }
+  }, [bastionInstanceId]);
 
   // ── CloudWatch Alarms ──
   const alarmsHook = useCloudWatchAlarms(0);
@@ -419,7 +480,7 @@ function Monitoring() {
 
   // Resolve resources
   const bastion = resources.ec2Instances.find(
-    (i) => i.instanceId === BASTION_INSTANCE_ID
+    (i) => i.instanceId === bastionInstanceId
   );
   const neptune = resources.neptuneClusters[0];
 
@@ -430,33 +491,74 @@ function Monitoring() {
   const handleBastionToggle = useCallback(async () => {
     if (!bastion) return;
     setBastionActionLoading(true);
+    const targetState = bastion.state === "running" ? "stopped" : "running";
     try {
       if (bastion.state === "running") {
-        await stopInstance(BASTION_INSTANCE_ID);
+        await stopInstance(bastionInstanceId!);
       } else {
-        await startInstance(BASTION_INSTANCE_ID);
+        await startInstance(bastionInstanceId!);
       }
-      // Brief delay then refresh to show transitional state
-      await new Promise((r) => setTimeout(r, 1500));
-      resources.refresh();
+      // Poll until the instance reaches the target state (up to ~2 min)
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const instances = await describeInstances([bastionInstanceId!]);
+        const currentState = instances[0]?.state ?? "unknown";
+        resources.refresh();
+        if (currentState === targetState) break;
+      }
     } catch (err: any) {
       console.error("Bastion toggle error:", err);
     } finally {
       setBastionActionLoading(false);
     }
-  }, [bastion, resources]);
+  }, [bastion, bastionInstanceId, resources]);
+
+  const [bastionCreateStatus, setBastionCreateStatus] = useState<string | null>(null);
+  const [bastionCreateError, setBastionCreateError] = useState<string | null>(null);
+
+  const handleBastionCreate = useCallback(async () => {
+    setBastionCreateError(null);
+    setBastionCreateStatus("Launching…");
+    try {
+      const newId = await createBastionInstance();
+      setBastionInstanceId(newId);
+
+      // Poll until running (up to ~2 min, every 5s)
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const instances = await describeInstances([newId]);
+        const state = instances[0]?.state ?? "pending";
+        if (state === "running") break;
+        setBastionCreateStatus(state.charAt(0).toUpperCase() + state.slice(1) + "…");
+      }
+
+      resources.refresh();
+    } catch (err: any) {
+      console.error("Bastion create error:", err);
+      setBastionCreateError(err?.message ?? String(err));
+    } finally {
+      setBastionCreateStatus(null);
+    }
+  }, [resources]);
 
   const handleNeptuneToggle = useCallback(async () => {
     if (!neptune) return;
     setNeptuneActionLoading(true);
+    const targetStatus = neptune.status === "available" ? "stopped" : "available";
     try {
       if (neptune.status === "available") {
         await stopNeptuneCluster(NEPTUNE_CLUSTER_ID);
       } else {
         await startNeptuneCluster(NEPTUNE_CLUSTER_ID);
       }
-      await new Promise((r) => setTimeout(r, 1500));
-      resources.refresh();
+      // Poll until the cluster reaches the target status (up to ~10 min)
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 10000));
+        const clusters = await describeNeptuneClusters([NEPTUNE_CLUSTER_ID]);
+        const currentStatus = clusters[0]?.status ?? "unknown";
+        resources.refresh();
+        if (currentStatus === targetStatus) break;
+      }
     } catch (err: any) {
       console.error("Neptune toggle error:", err);
     } finally {
@@ -499,30 +601,42 @@ function Monitoring() {
               {resources.error}
             </p>
           )}
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[auto_auto_1fr]">
             {/* Resource status */}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 sm:w-max">
               {/* Bastion */}
-              <div className="flex items-center gap-3 rounded-md border p-3">
-                <Server className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-col rounded-md border p-3 gap-2 w-44">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <p className="text-xs font-medium">SSM Bastion Host</p>
-                  {resources.loading && !bastion ? (
-                    <Skeleton className="mt-1 h-5 w-20 rounded-full" />
-                  ) : bastion ? (
-                    <div className="mt-1 flex items-center gap-2">
-                      <EC2StateBadge state={bastion.state} />
-                      <span className="text-[10px] text-muted-foreground">{bastion.instanceType}</span>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">Not found</span>
-                  )}
                 </div>
-                {bastion && (
+                {!bastionSsmLoaded || (resources.loading && !bastion) ? (
+                  <>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-3 w-16" />
+                  </>
+                ) : bastion && bastion.state !== "terminated" ? (
+                  <>
+                    <EC2StateBadge state={bastion.state} />
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-[11px] text-muted-foreground">{bastion.instanceType}</p>
+                      <p className="text-[11px] text-muted-foreground">{import.meta.env.VITE_COGNITO_REGION || "us-east-1"}</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground font-mono">{bastionInstanceId}</p>
+                  </>
+                ) : (
+                  <EC2StateBadge state="terminated" />
+                )}
+                {(bastionSsmError || bastionCreateError) && (
+                  <p className="text-[10px] text-red-600 dark:text-red-400 break-words leading-tight">
+                    {bastionSsmError ?? bastionCreateError}
+                  </p>
+                )}
+                {bastionSsmLoaded && bastion && bastion.state !== "terminated" ? (
                   <Button
                     variant={bastion.state === "running" ? "destructive" : "default"}
                     size="sm"
-                    className="shrink-0 h-7 px-2.5 text-xs"
+                    className="w-full h-7 text-xs mt-auto"
                     disabled={bastionActionLoading || !["running", "stopped"].includes(bastion.state)}
                     onClick={handleBastionToggle}
                   >
@@ -533,36 +647,61 @@ function Monitoring() {
                     ) : (
                       <Play className="mr-1.5 h-3 w-3" />
                     )}
-                    {bastion.state === "running" ? "Stop" : "Start"}
+                    {bastion.state === "running" ? "Stop Instance" : "Start Instance"}
                   </Button>
-                )}
+                ) : bastionSsmLoaded ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full h-7 text-xs mt-auto"
+                    disabled={bastionCreateStatus !== null}
+                    onClick={handleBastionCreate}
+                  >
+                    {bastionCreateStatus !== null ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Play className="mr-1.5 h-3 w-3" />
+                    )}
+                    {bastionCreateStatus ?? "Create Instance"}
+                  </Button>
+                ) : null}
               </div>
 
               {/* Neptune */}
-              <div className="flex items-center gap-3 rounded-md border p-3">
-                <Database className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-col rounded-md border p-3 gap-2 w-44">
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <p className="text-xs font-medium">Neptune Cluster</p>
-                  {resources.loading && !neptune ? (
-                    <Skeleton className="mt-1 h-5 w-20 rounded-full" />
-                  ) : neptune ? (
-                    <div className="mt-1 flex items-center gap-2">
-                      <NeptuneStateBadge status={neptune.status} />
-                      <span className="text-[10px] text-muted-foreground">
-                        {neptune.engine} {neptune.engineVersion}
-                        {neptune.serverlessV2ScalingMin != null &&
-                          ` · ${neptune.serverlessV2ScalingMin}–${neptune.serverlessV2ScalingMax} NCU`}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">Not found</span>
-                  )}
                 </div>
+                {resources.loading && !neptune ? (
+                  <>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </>
+                ) : neptune ? (
+                  <>
+                    <NeptuneStateBadge status={neptune.status} />
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        {neptune.engine} {neptune.engineVersion}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{import.meta.env.VITE_COGNITO_REGION || "us-east-1"}</p>
+                    </div>
+                    {neptune.serverlessV2ScalingMin != null && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {neptune.serverlessV2ScalingMin}–{neptune.serverlessV2ScalingMax} NCU (serverless)
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground">Not found</span>
+                )}
                 {neptune && (
                   <Button
                     variant={neptune.status === "available" ? "destructive" : "default"}
                     size="sm"
-                    className="shrink-0 h-7 px-2.5 text-xs"
+                    className="w-full h-7 text-xs mt-auto"
                     disabled={neptuneActionLoading || !["available", "stopped"].includes(neptune.status)}
                     onClick={handleNeptuneToggle}
                   >
@@ -573,7 +712,7 @@ function Monitoring() {
                     ) : (
                       <Play className="mr-1.5 h-3 w-3" />
                     )}
-                    {neptune.status === "available" ? "Stop" : "Start"}
+                    {neptune.status === "available" ? "Stop Cluster" : "Start Cluster"}
                   </Button>
                 )}
               </div>

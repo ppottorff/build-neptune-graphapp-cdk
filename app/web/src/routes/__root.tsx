@@ -1,4 +1,3 @@
-import { ModeToggle } from "@/components/mode-toggles";
 import { AuthStore, useAuthStore } from "@/store/useAuthStore";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
@@ -17,7 +16,6 @@ function Root() {
   const auth = useAuthStore();
   return (
     <div className="min-h-screen w-dvw">
-      <ModeToggle />
 
       {!auth.isAuth ? (
         <Signin />

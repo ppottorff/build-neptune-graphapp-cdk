@@ -56,7 +56,7 @@ const apiStack = new ApiStack(app, `${appName}-ApiStack`, {
   vpc: neptuneNetwork.vpc,
   cluster: neptuneNetwork.cluster,
   clusterRole: neptuneNetwork.neptuneRole,
-  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges", "searchProjects", "getProjectAccounts", "addProjectAccount", "deleteProjectAccount"],
+  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges", "searchProjects", "getProjectAccounts", "addProjectAccount", "deleteProjectAccount", "getFeedback", "submitFeedback", "updateFeedback"],
   s3Uri: deployConfig.s3Uri,
   env,
 });
@@ -166,6 +166,26 @@ authRole.addToPrincipalPolicy(
       "xray:GetTraceSummaries",
       "xray:BatchGetTraces",
       "xray:GetServiceGraph",
+    ],
+    resources: ["*"],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringSSMBastionParams",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: ["ssm:GetParameter", "ssm:PutParameter"],
+    resources: [`arn:aws:ssm:${env.region}:${env.account}:parameter/graphApp/bastion/*`],
+  })
+);
+authRole.addToPrincipalPolicy(
+  new cdk.aws_iam.PolicyStatement({
+    sid: "MonitoringEC2CreateBastion",
+    effect: cdk.aws_iam.Effect.ALLOW,
+    actions: [
+      "ec2:RunInstances",
+      "ec2:CreateTags",
+      "iam:PassRole",
     ],
     resources: ["*"],
   })

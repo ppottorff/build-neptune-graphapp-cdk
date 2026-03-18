@@ -102,3 +102,19 @@ export const getProjectAccounts = /* GraphQL */ `
     }
   }
 `;
+
+export const getFeedback = /* GraphQL */ `
+  query getFeedback($submittedBy: String!) {
+    getFeedback(submittedBy: $submittedBy) {
+      id
+      submittedBy
+      presentation
+      vendor
+      presenter
+      venue
+      comments
+      createdAt
+      updatedAt
+    }
+  }
+`;

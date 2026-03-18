@@ -73,6 +73,11 @@
 
 ## Documentation
 
+- **ALL changes MUST be documented in the `docs/` directory**
+  - For new features or pages, create or update a relevant doc (e.g., `docs/settings.md`, `docs/monitoring.md`)
+  - For infrastructure changes, update `docs/config.md` or create a new doc as appropriate
+  - For bug fixes or behavioral changes, add an entry to the relevant existing doc
+  - Documentation should include: what changed, why, and any new configuration/usage instructions
 - Update `docs/config.md` when configuration options change
 - Keep README.md current with deployment instructions
 - Document breaking changes or new features in commit messages

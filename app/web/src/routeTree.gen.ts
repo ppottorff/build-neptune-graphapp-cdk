@@ -20,6 +20,8 @@ import { Route as AuthenticatedLayoutGraphImport } from './routes/_authenticated
 import { Route as AuthenticatedLayoutChatImport } from './routes/_authenticated/_layout/chat'
 import { Route as AuthenticatedLayoutMonitoringImport } from './routes/_authenticated/_layout/monitoring'
 import { Route as AuthenticatedLayoutProjectsImport } from './routes/_authenticated/_layout/projects'
+import { Route as AuthenticatedLayoutSettingsImport } from './routes/_authenticated/_layout/settings'
+import { Route as AuthenticatedLayoutFeedbackImport } from './routes/_authenticated/_layout/feedback'
 
 // Create/Update Routes
 
@@ -69,6 +71,16 @@ const AuthenticatedLayoutProjectsRoute = AuthenticatedLayoutProjectsImport.updat
   getParentRoute: () => AuthenticatedLayoutRoute,
 } as any)
 
+const AuthenticatedLayoutSettingsRoute = AuthenticatedLayoutSettingsImport.update({
+  path: '/settings',
+  getParentRoute: () => AuthenticatedLayoutRoute,
+} as any)
+
+const AuthenticatedLayoutFeedbackRoute = AuthenticatedLayoutFeedbackImport.update({
+  path: '/feedback',
+  getParentRoute: () => AuthenticatedLayoutRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -109,6 +121,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLayoutProjectsImport
       parentRoute: typeof AuthenticatedLayoutImport
     }
+    '/_authenticated/_layout/settings': {
+      preLoaderRoute: typeof AuthenticatedLayoutSettingsImport
+      parentRoute: typeof AuthenticatedLayoutImport
+    }
+    '/_authenticated/_layout/feedback': {
+      preLoaderRoute: typeof AuthenticatedLayoutFeedbackImport
+      parentRoute: typeof AuthenticatedLayoutImport
+    }
   }
 }
 
@@ -123,6 +143,8 @@ export const routeTree = rootRoute.addChildren([
       AuthenticatedLayoutChatRoute,
       AuthenticatedLayoutMonitoringRoute,
       AuthenticatedLayoutProjectsRoute,
+      AuthenticatedLayoutSettingsRoute,
+      AuthenticatedLayoutFeedbackRoute,
     ]),
   ]),
   AuthSigninRoute,

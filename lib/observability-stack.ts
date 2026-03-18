@@ -224,14 +224,14 @@ export class ObservabilityStack extends Stack {
       "Neptune-CapacityAlarm",
       {
         metric: neptuneCapacity,
-        threshold: 2,
+        threshold: 6,
         evaluationPeriods: 3,
         comparisonOperator:
           aws_cloudwatch.ComparisonOperator
             .GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: aws_cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription:
-          "Neptune serverless capacity approaching max (>= 2 of 2.5 NCU)",
+          "Neptune serverless capacity approaching max (>= 6 of 8 NCU)",
       }
     );
     neptuneCapacityAlarm.addAlarmAction(snsAction);

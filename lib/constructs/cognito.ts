@@ -61,6 +61,9 @@ export class Cognito extends Construct {
         requireDigits: true,
         requireSymbols: true,
       },
+      customAttributes: {
+        theme: new aws_cognito.StringAttribute({ mutable: true }),
+      },
     });
 
     const userPoolClient = this.userPool.addClient("webappClient", {
@@ -70,6 +73,8 @@ export class Cognito extends Construct {
       },
       preventUserExistenceErrors: true,
       refreshTokenValidity: props.refreshTokenValidity,
+      readAttributes: new aws_cognito.ClientAttributes().withCustomAttributes("theme"),
+      writeAttributes: new aws_cognito.ClientAttributes().withCustomAttributes("theme"),
     });
 
     const identityPool = new IdentityPool(this, "identityPool", {

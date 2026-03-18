@@ -20,7 +20,13 @@ import {
   DescribeInstanceStatusCommand,
   StartInstancesCommand,
   StopInstancesCommand,
+  RunInstancesCommand,
 } from "@aws-sdk/client-ec2";
+import {
+  SSMClient,
+  GetParameterCommand,
+  PutParameterCommand,
+} from "@aws-sdk/client-ssm";
 import {
   NeptuneClient,
   DescribeDBClustersCommand,
@@ -176,4 +182,74 @@ export async function describeNeptuneClusters(
     serverlessV2ScalingMax:
       c.ServerlessV2ScalingConfiguration?.MaxCapacity,
   }));
+}
+
+// ─── SSM Parameter Store helpers ───────────────────────────────────────
+
+export async function getSsmParameter(name: string): Promise<string | null> {
+  const ssm = await makeClient(SSMClient);
+  try {
+    const resp = await ssm.send(new GetParameterCommand({ Name: name }));
+    return resp.Parameter?.Value ?? null;
+  } catch (e: any) {
+    if (e.name === "ParameterNotFound") return null;
+    throw e;
+  }
+}
+
+export async function putSsmParameter(name: string, value: string): Promise<void> {
+  const ssm = await makeClient(SSMClient);
+  await ssm.send(
+    new PutParameterCommand({ Name: name, Value: value, Type: "String", Overwrite: true })
+  );
+}
+
+// ─── Bastion instance creation ─────────────────────────────────────────
+
+const BASTION_PARAM_PREFIX = "/graphApp/bastion";
+
+/**
+ * Reads the launch config from SSM, creates a new t3.nano bastion host,
+ * stores the new instance ID back to SSM, and returns the new instance ID.
+ */
+export async function createBastionInstance(): Promise<string> {
+  const [subnetId, securityGroupId, instanceProfileName, amiId] = await Promise.all([
+    getSsmParameter(`${BASTION_PARAM_PREFIX}/subnet-id`),
+    getSsmParameter(`${BASTION_PARAM_PREFIX}/security-group-id`),
+    getSsmParameter(`${BASTION_PARAM_PREFIX}/instance-profile-name`),
+    // Use the latest Amazon Linux 2023 AMI from the public SSM parameter
+    getSsmParameter("/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"),
+  ]);
+
+  if (!subnetId || !securityGroupId || !instanceProfileName || !amiId) {
+    throw new Error(
+      "Missing bastion launch configuration in SSM Parameter Store. " +
+      "Ensure the CDK stack has been deployed with bastion.enabled = true."
+    );
+  }
+
+  const ec2 = await makeClient(EC2Client);
+  const resp = await ec2.send(
+    new RunInstancesCommand({
+      ImageId: amiId,
+      InstanceType: "t3.nano",
+      MinCount: 1,
+      MaxCount: 1,
+      SubnetId: subnetId,
+      SecurityGroupIds: [securityGroupId],
+      IamInstanceProfile: { Name: instanceProfileName },
+      TagSpecifications: [
+        {
+          ResourceType: "instance",
+          Tags: [{ Key: "Name", Value: "graphApp-BastionHost" }],
+        },
+      ],
+    })
+  );
+
+  const instanceId = resp.Instances?.[0]?.InstanceId;
+  if (!instanceId) throw new Error("RunInstances did not return an instance ID.");
+
+  await putSsmParameter(`${BASTION_PARAM_PREFIX}/instance-id`, instanceId);
+  return instanceId;
 }

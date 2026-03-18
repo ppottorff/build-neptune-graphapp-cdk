@@ -47,7 +47,7 @@ export class Neptune extends Construct {
     if (neptuneServerlss) {
       let serverlessScalingConfiguration = {
         minCapacity: 1,
-        maxCapacity: 2.5,
+        maxCapacity: 8,
       };
       if (neptuneServerlssCapacity) {
         (serverlessScalingConfiguration.minCapacity =

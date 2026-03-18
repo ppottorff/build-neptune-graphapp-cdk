@@ -351,6 +351,11 @@ export class Api extends Construct {
         reason: "CDK managed resource",
         appliesTo: ["Resource::*"],
       },
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "SSM parameter path scoped to /graphApp/bastion/*",
+        appliesTo: [{ regex: "/^Resource::arn:aws:ssm:.*:parameter\\/graphApp\\/bastion\\/\\*$/" }],
+      },
     ]);
   }
 }

@@ -39,13 +39,8 @@ function HealthIndicator({ health }: { health: AwsServiceHealth }) {
   switch (health) {
     case "operational":
       return (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-green-500 flex items-center justify-center">
-            <CheckCircle2 className="h-2 w-2 text-white" />
-          </span>
-          <span className="text-xs text-green-700 dark:text-green-400">
-            Operational
-          </span>
+        <span className="h-3 w-3 rounded-full bg-green-500 flex items-center justify-center">
+          <CheckCircle2 className="h-2 w-2 text-white" />
         </span>
       );
     case "informational":
@@ -182,7 +177,7 @@ export function AwsHealthStatus({ statuses, loading, error }: AwsHealthStatusPro
     return (
       <div className="grid gap-3">
         <Skeleton className="h-10 rounded" />
-        <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
+        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 15 }).map((_, i) => (
             <Skeleton key={i} className="h-10 rounded" />
           ))}
@@ -212,18 +207,18 @@ export function AwsHealthStatus({ statuses, loading, error }: AwsHealthStatusPro
       {statuses.length > 0 && <HealthSummary statuses={statuses} />}
 
       {/* Service grid */}
-      <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-5">
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
         {statuses.map((s) => (
           <a
             key={s.service.feedId}
             href={s.rssUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`group flex items-center justify-between rounded-md border border-l-4 px-3 py-2 transition-colors hover:bg-muted/50 ${CATEGORY_COLORS[s.service.category] ?? "border-l-gray-400"}`}
+            className={`group flex items-center justify-between gap-3 rounded-md border border-l-4 px-3 py-2 transition-colors hover:bg-muted/50 ${CATEGORY_COLORS[s.service.category] ?? "border-l-gray-400"}`}
             title={`View RSS feed for ${s.service.label}`}
           >
-            <span className="text-sm font-medium">{s.service.label}</span>
-            <HealthIndicator health={s.health} />
+            <span className="text-sm font-medium min-w-0 truncate">{s.service.label}</span>
+            <span className="shrink-0"><HealthIndicator health={s.health} /></span>
           </a>
         ))}
       </div>

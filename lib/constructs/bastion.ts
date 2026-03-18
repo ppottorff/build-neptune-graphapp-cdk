@@ -7,6 +7,7 @@ import {
   aws_lambda,
   aws_lambda_nodejs,
   aws_scheduler,
+  aws_ssm,
 } from "aws-cdk-lib";
 import * as neptune from "@aws-cdk/aws-neptune-alpha";
 import { NagSuppressions } from "cdk-nag";
@@ -45,6 +46,33 @@ export class Bastion extends Construct {
 
     // Allow the bastion to reach Neptune on port 8182
     cluster.connections.allowDefaultPortFrom(this.instance);
+
+    // -----------------------------------------------------------------------
+    // Store bastion config in SSM so the monitoring UI can recreate the instance
+    // -----------------------------------------------------------------------
+    const cfnInstanceProfile = this.instance.instance.node.findChild("InstanceProfile") as aws_iam.CfnInstanceProfile;
+    const bastionSg = this.instance.connections.securityGroups[0];
+
+    new aws_ssm.StringParameter(this, "bastion-instance-id-param", {
+      parameterName: "/graphApp/bastion/instance-id",
+      stringValue: this.instance.instanceId,
+      description: "Current bastion host EC2 instance ID",
+    });
+    new aws_ssm.StringParameter(this, "bastion-subnet-id-param", {
+      parameterName: "/graphApp/bastion/subnet-id",
+      stringValue: vpc.publicSubnets[0].subnetId,
+      description: "Public subnet for bastion host recreation",
+    });
+    new aws_ssm.StringParameter(this, "bastion-sg-id-param", {
+      parameterName: "/graphApp/bastion/security-group-id",
+      stringValue: bastionSg.securityGroupId,
+      description: "Security group for bastion host (allows Neptune access)",
+    });
+    new aws_ssm.StringParameter(this, "bastion-profile-name-param", {
+      parameterName: "/graphApp/bastion/instance-profile-name",
+      stringValue: cfnInstanceProfile.ref,
+      description: "IAM instance profile name for SSM-managed bastion",
+    });
 
     // -----------------------------------------------------------------------
     // Lambda that stops the bastion instance
