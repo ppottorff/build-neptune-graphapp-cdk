@@ -28,7 +28,7 @@ const neptuneNetwork = new NeptuneNetworkStack(
   `${appName}-NeptuneNetworkStack`,
   {
     natSubnet: false,
-    maxAz: 1,
+    maxAz: 2,
     neptuneServerlss: true,
     neptuneServerlssCapacity: {
       minCapacity: 1,
