@@ -68,10 +68,10 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
           <NavItem to="/chat" icon={MessageSquare} label="Neptune GraphDB Chatbot" />
           {canEdit && <NavItem to="/register" icon={CopyPlus} label="Add Vertex/Edge" />}
           <NavItem to="/graph" icon={ScatterChart} label="Graph Visualization" />
-          {isAdmin && <NavItem to="/monitoring" icon={Activity} label="Monitoring" />}
           <NavItem to="/projects" icon={FolderKanban} label="Business Services" />
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-1 px-2 py-4">
+          {isAdmin && <NavItem to="/monitoring" icon={Activity} label="Monitoring" />}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
