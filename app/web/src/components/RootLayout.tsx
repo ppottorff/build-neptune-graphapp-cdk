@@ -9,7 +9,6 @@ import {
   LogOut,
   Activity,
   FolderKanban,
-  Shield,
 } from "lucide-react";
 
 import {
@@ -22,6 +21,7 @@ import { signOut } from "aws-amplify/auth";
 import { useHasRole } from "@/store/useAuthStore";
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: typeof Home; label: string }) {
+  // @ts-ignore — TanStack Router deep type instantiation (TS2589)
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = pathname === to || (to !== "/" && pathname.startsWith(to));
 
