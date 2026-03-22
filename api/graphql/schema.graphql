@@ -1,0 +1,157 @@
+type RelationName {
+  name: String!
+}
+
+type Profile {
+  search_name: String
+  usage: String
+  belong_to: String
+  authored_by: String
+  affiliated_with: String
+  people: String
+  made_by: String
+}
+
+type InsertDataResult {
+  result: String
+}
+type Graph {
+  nodes: [Nodes]
+  links: [Links]
+}
+
+type Nodes {
+  id: String
+  label: String
+}
+
+type Links {
+  source: String
+  target: String
+  value: String
+}
+
+type AiResponse {
+  answer: String
+  query: String
+  data: String
+}
+
+type EntityProperty {
+  key: String!
+  value: String!
+}
+
+type EdgeRelation {
+  edgeLabel: String!
+  direction: String!
+  targetLabel: String!
+  targetName: String!
+}
+
+type SearchResult {
+  id: String!
+  name: String!
+  label: String!
+  entityType: String
+}
+
+type ProjectData {
+  id: String!
+  projectName: String!
+  DepartmentNumber: String
+  DataClassification: String
+  Team: String
+  OwnerGroup: String
+  Recovery: String
+  Tier: String
+}
+
+type Account {
+  id: String!
+  Account_Name: String!
+  Account_Id: String!
+  Cloud: String!
+  Environments: String!
+}
+
+type Feedback {
+  id: String!
+  submittedBy: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+  createdAt: String!
+  updatedAt: String
+}
+
+############################### Inputs ###############################
+input InsertDataInput {
+  value: String!
+  name: String
+  edge: String
+  vertex: String
+  property: String
+  source: String
+  sourceLabel: String
+  destination: String
+  destLabel: String
+  properties: String
+}
+
+############################### Queries ###############################
+type Query {
+  getRelationName(type: String!, name: String!, value: String!): [RelationName]
+    @aws_cognito_user_pools
+  getProfile(type: String!, name: String!, value: String!): [Profile]
+    @aws_cognito_user_pools
+  getGraph(type: String!, value: String!): Graph @aws_cognito_user_pools
+  askGraph(question: String!, history: String): AiResponse
+    @aws_cognito_user_pools
+  searchEntities(vertexType: String!, searchValue: String): [SearchResult]
+    @aws_cognito_user_pools
+  searchProjects(searchValue: String): [ProjectData] @aws_cognito_user_pools
+  getEntityProperties(vertexType: String!, searchValue: String, vertexId: String): [EntityProperty]
+    @aws_cognito_user_pools
+  getEntityEdges(vertexType: String!, searchValue: String, vertexId: String): [EdgeRelation]
+    @aws_cognito_user_pools
+  getProjectAccounts(projectName: String!): [Account]
+    @aws_cognito_user_pools
+  getFeedback(submittedBy: String!): [Feedback] @aws_cognito_user_pools
+}
+input AddAccountInput {
+  projectName: String!
+  Account_Name: String!
+  Account_Id: String!
+  Cloud: String!
+  Environments: String!
+}
+
+input FeedbackInput {
+  submittedBy: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+}
+
+input UpdateFeedbackInput {
+  id: String!
+  presentation: Int!
+  vendor: Int!
+  presenter: Int!
+  venue: Int!
+  comments: String
+}
+
+############################### Mutations ###############################
+type Mutation {
+  insertData(input: InsertDataInput!): InsertDataResult @aws_cognito_user_pools
+  addProjectAccount(input: AddAccountInput!): Account @aws_cognito_user_pools
+  deleteProjectAccount(accountId: String!): InsertDataResult @aws_cognito_user_pools
+  submitFeedback(input: FeedbackInput!): Feedback @aws_cognito_user_pools
+  updateFeedback(input: UpdateFeedbackInput!): Feedback @aws_cognito_user_pools
+}

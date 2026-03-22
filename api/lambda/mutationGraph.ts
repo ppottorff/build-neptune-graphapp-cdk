@@ -1,0 +1,240 @@
+import { Handler } from "aws-lambda";
+
+import * as gremlin from "gremlin";
+import { getUrlAndHeaders } from "gremlin-aws-sigv4/lib/utils";
+
+const DriverRemoteConnection = gremlin.driver.DriverRemoteConnection;
+const traversal = gremlin.process.AnonymousTraversalSource.traversal;
+const __ = gremlin.process.statics;
+
+export const handler: Handler = async (event) => {
+  let conn = null;
+  const getConnectionDetails = () => {
+    return getUrlAndHeaders(
+      process.env.NEPTUNE_ENDPOINT,
+      process.env.NEPTUNE_PORT,
+      {},
+      "/gremlin",
+      "wss"
+    );
+  };
+
+  const createRemoteConnection = () => {
+    const { url, headers } = getConnectionDetails();
+
+    console.log(url);
+    console.log(headers);
+    const c = new DriverRemoteConnection(url, {
+      mimeType: "application/vnd.gremlin-v2.0+json",
+      headers: headers,
+    });
+    c._client._connection.on("close", (code: number, message: string) => {
+      console.info(`close - ${code} ${message}`);
+      if (code == 1006) {
+        console.error("Connection closed prematurely");
+        throw new Error("Connection closed prematurely");
+      }
+    });
+    return c;
+  };
+
+  let g;
+  const id = gremlin.process.t.id;
+
+  try {
+    if (conn == null) {
+      console.info("Initializing connection");
+      conn = createRemoteConnection();
+      g = traversal().withRemote(conn);
+    }
+
+    // ── Account mutations ──
+    if (event.field === "addProjectAccount") {
+      const { projectName, Account_Name, Account_Id, Cloud, Environments } = event.arguments.input;
+      const accountVertexId = `account_${Date.now()}`;
+
+      // Create the Account vertex
+      await g!.addV('Account')
+        .property(id, accountVertexId)
+        .property('Account_Name', Account_Name)
+        .property('Account_Id', Account_Id)
+        .property('Cloud', Cloud)
+        .property('Environments', Environments)
+        .next();
+
+      // Create owned_by edge from Account → Project_Data
+      await g!.V(accountVertexId)
+        .addE('owned_by')
+        .to(__.V().hasLabel('Project_Data').has('projectName', projectName))
+        .next();
+
+      console.log("Created account:", accountVertexId, "linked to project:", projectName);
+      return {
+        id: accountVertexId,
+        Account_Name,
+        Account_Id,
+        Cloud,
+        Environments,
+      };
+    }
+
+    if (event.field === "deleteProjectAccount") {
+      const { accountId } = event.arguments;
+      // Drop the vertex and all its edges
+      await g!.V(accountId).drop().next();
+      console.log("Deleted account vertex:", accountId);
+      return { result: "deleted" };
+    }
+
+    // ── Feedback mutations ──
+    if (event.field === "submitFeedback") {
+      const { submittedBy, presentation, vendor, presenter, venue, comments } = event.arguments.input;
+      const feedbackId = `feedback_${Date.now()}`;
+      const createdAt = new Date().toISOString();
+
+      await g!.addV('Feedback')
+        .property(id, feedbackId)
+        .property('submittedBy', submittedBy)
+        .property('presentation', presentation)
+        .property('vendor', vendor)
+        .property('presenter', presenter)
+        .property('venue', venue)
+        .property('comments', comments || '')
+        .property('createdAt', createdAt)
+        .next();
+
+      console.log("Created feedback:", feedbackId);
+      return {
+        id: feedbackId,
+        submittedBy,
+        presentation,
+        vendor,
+        presenter,
+        venue,
+        comments: comments || '',
+        createdAt,
+        updatedAt: null,
+      };
+    }
+
+    if (event.field === "updateFeedback") {
+      const { id: feedbackId, presentation, vendor, presenter, venue, comments } = event.arguments.input;
+      const updatedAt = new Date().toISOString();
+
+      await g!.V(feedbackId)
+        .property('presentation', presentation)
+        .property('vendor', vendor)
+        .property('presenter', presenter)
+        .property('venue', venue)
+        .property('comments', comments || '')
+        .property('updatedAt', updatedAt)
+        .next();
+
+      // Read back the full vertex to return
+      const result = await g!.V(feedbackId).valueMap(true).toList();
+      const v = result[0];
+      const get = (key: string) => {
+        if (v instanceof Map) {
+          const val = v.get(key);
+          return Array.isArray(val) ? val[0] : val;
+        }
+        const val = v[key];
+        return Array.isArray(val) ? val[0] : val;
+      };
+
+      console.log("Updated feedback:", feedbackId);
+      return {
+        id: feedbackId,
+        submittedBy: get('submittedBy') || '',
+        presentation: get('presentation') || 0,
+        vendor: get('vendor') || 0,
+        presenter: get('presenter') || 0,
+        venue: get('venue') || 0,
+        comments: get('comments') || '',
+        createdAt: get('createdAt') || '',
+        updatedAt,
+      };
+    }
+
+    // ── Generic insertData mutations ──
+  const {
+    value,
+    edge,
+    vertex,
+    source,
+    sourceLabel,
+    destination,
+    destLabel,
+    properties: propertiesJson,
+  } = event.arguments.input;
+
+  // Parse properties JSON (new generic approach)
+  const props: Record<string, unknown> =
+    propertiesJson ? JSON.parse(propertiesJson) : {};
+
+    switch (value) {
+      case "vertex": {
+        // Generate a unique vertex ID using label prefix + timestamp
+        const vertexId = `${vertex.toLowerCase()}_${Date.now()}`;
+
+        // Start the addV traversal
+        let t = g!.addV(vertex).property(id, vertexId);
+
+        // Add all properties from the properties JSON
+        for (const [key, val] of Object.entries(props)) {
+          if (val !== undefined && val !== null && val !== "") {
+            t = t.property(key, val);
+          }
+        }
+
+        const result = await t.next();
+        console.log("Created vertex:", vertexId, vertex, props);
+        return { result: JSON.stringify(result) };
+      }
+
+      default: {
+        // Edge creation
+        console.log("Creating edge:", edge, "from", sourceLabel, source, "to", destLabel, destination);
+
+        // Find source vertex by label and any name-like property
+        let t = g!
+          .V()
+          .hasLabel(sourceLabel)
+          .or(
+            __.has("name", source),
+            __.has("companyName", source),
+            __.has("jobName", source),
+            __.has("partName", source)
+          );
+
+        // Add edge to destination vertex found by label and name-like property
+        let edgeTraversal = t.addE(edge).to(
+          __.V()
+            .hasLabel(destLabel)
+            .or(
+              __.has("name", destination),
+              __.has("companyName", destination),
+              __.has("jobName", destination),
+              __.has("partName", destination)
+            )
+        );
+
+        // Add edge properties from the properties JSON
+        for (const [key, val] of Object.entries(props)) {
+          if (val !== undefined && val !== null && val !== "") {
+            edgeTraversal = edgeTraversal.property(key, val);
+          }
+        }
+
+        const res = await edgeTraversal.next();
+        console.log("Created edge:", edge, props);
+        return { result: JSON.stringify(res) };
+      }
+    }
+  } catch (error: unknown) {
+    console.log(error);
+    console.error(JSON.stringify(error));
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: message };
+  }
+};
