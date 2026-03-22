@@ -5,6 +5,7 @@ import { NeptuneNetworkStack } from "../lib/neptune-network-stack";
 import { ApiStack } from "../lib/api-stack";
 import { WafCloudFrontStack } from "../lib/waf-stack";
 import { ObservabilityStack } from "../lib/observability-stack";
+import { DnsStack } from "../lib/dns-stack";
 import { AwsSolutionsChecks } from "cdk-nag";
 
 import { deployConfig } from "../config";
@@ -190,3 +191,9 @@ authRole.addToPrincipalPolicy(
     resources: ["*"],
   })
 );
+
+// ── DNS: Hosted zone for mucker.io ──────────────────────────────────
+new DnsStack(app, `${appName}-DnsStack`, {
+  domainName: deployConfig.domainName,
+  env,
+});

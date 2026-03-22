@@ -27,7 +27,6 @@ permissions:
 env:
   AWS_REGION: us-east-1
   AWS_ACCOUNT_ID: 384492676078
-  BASTION_INSTANCE_ID: i-0b4bd9e067ac8b605
 
 jobs:
   neptune-control:
@@ -142,11 +141,25 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get bastion instance ID from SSM
+        id: ssm
+        run: |
+          INSTANCE_ID=$(aws ssm get-parameter \
+            --name /graphApp/bastion/instance-id \
+            --query "Parameter.Value" \
+            --output text --region ${{ env.AWS_REGION }})
+          if [ -z "$INSTANCE_ID" ]; then
+            echo "::error::Bastion instance ID not found in SSM parameter /graphApp/bastion/instance-id"
+            exit 1
+          fi
+          echo "instance-id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+          echo "Bastion instance ID from SSM: $INSTANCE_ID"
+
       - name: Get current bastion status
         id: before-status
         run: |
           STATUS=$(aws ec2 describe-instances \
-            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --instance-ids ${{ steps.ssm.outputs.instance-id }} \
             --query "Reservations[0].Instances[0].State.Name" \
             --output text --region ${{ env.AWS_REGION }})
           echo "status=$STATUS" >> $GITHUB_OUTPUT
@@ -155,17 +168,17 @@ jobs:
       - name: Stop bastion
         if: inputs.action == 'stop'
         run: |
-          echo "Stopping bastion instance ${{ env.BASTION_INSTANCE_ID }}"
+          echo "Stopping bastion instance ${{ steps.ssm.outputs.instance-id }}"
           aws ec2 stop-instances \
-            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --instance-ids ${{ steps.ssm.outputs.instance-id }} \
             --region ${{ env.AWS_REGION }}
 
       - name: Start bastion
         if: inputs.action == 'start'
         run: |
-          echo "Starting bastion instance ${{ env.BASTION_INSTANCE_ID }}"
+          echo "Starting bastion instance ${{ steps.ssm.outputs.instance-id }}"
           aws ec2 start-instances \
-            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --instance-ids ${{ steps.ssm.outputs.instance-id }} \
             --region ${{ env.AWS_REGION }}
 
       - name: Wait for status change
@@ -174,11 +187,11 @@ jobs:
           echo "Waiting for bastion to transition..."
           if [[ "${{ inputs.action }}" == "stop" ]]; then
             aws ec2 wait instance-stopped \
-              --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+              --instance-ids ${{ steps.ssm.outputs.instance-id }} \
               --region ${{ env.AWS_REGION }}
           elif [[ "${{ inputs.action }}" == "start" ]]; then
             aws ec2 wait instance-running \
-              --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+              --instance-ids ${{ steps.ssm.outputs.instance-id }} \
               --region ${{ env.AWS_REGION }}
           fi
           echo "Done."
@@ -186,7 +199,7 @@ jobs:
       - name: Summary
         run: |
           STATUS=$(aws ec2 describe-instances \
-            --instance-ids ${{ env.BASTION_INSTANCE_ID }} \
+            --instance-ids ${{ steps.ssm.outputs.instance-id }} \
             --query "Reservations[0].Instances[0].State.Name" \
             --output text --region ${{ env.AWS_REGION }})
 
@@ -195,6 +208,6 @@ jobs:
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Action** | \`${{ inputs.action }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Instance** | \`${{ env.BASTION_INSTANCE_ID }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Instance** | \`${{ steps.ssm.outputs.instance-id }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Before** | \`${{ steps.before-status.outputs.status }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Current** | \`$STATUS\` |" >> $GITHUB_STEP_SUMMARY

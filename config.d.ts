@@ -3,6 +3,7 @@ declare const deployConfig: {
     stage: string;
     appName: string;
     region: string;
+    domainName: string;
     adminEmail: string;
     allowedIps: never[];
     wafParamName: string;
