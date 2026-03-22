@@ -43,6 +43,7 @@ export class Cognito extends Construct {
     this.userPool = new aws_cognito.UserPool(this, "userpool", {
       userPoolName: `${id}-app-userpool`,
       signInAliases: {
+        username: true,
         email: true,
       },
       accountRecovery: aws_cognito.AccountRecovery.EMAIL_ONLY,
