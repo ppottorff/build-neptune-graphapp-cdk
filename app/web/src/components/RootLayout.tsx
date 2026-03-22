@@ -9,6 +9,7 @@ import {
   LogOut,
   Activity,
   FolderKanban,
+  Shield,
 } from "lucide-react";
 
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { signOut } from "aws-amplify/auth";
+import { useHasRole } from "@/store/useAuthStore";
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: typeof Home; label: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -47,6 +49,8 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: typeof Home; lab
 
 export const MainLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
+  const canEdit = useHasRole("Admin", "Editor");
+  const isAdmin = useHasRole("Admin");
   const submitSignOut = async () => {
     try {
       await signOut();
@@ -62,9 +66,9 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
         <nav className="flex flex-col items-center gap-1 px-2 py-4">
           <NavItem to="/" icon={Home} label="Dashboard" />
           <NavItem to="/chat" icon={MessageSquare} label="Neptune GraphDB Chatbot" />
-          <NavItem to="/register" icon={CopyPlus} label="Add Vertex/Edge" />
+          {canEdit && <NavItem to="/register" icon={CopyPlus} label="Add Vertex/Edge" />}
           <NavItem to="/graph" icon={ScatterChart} label="Graph Visualization" />
-          <NavItem to="/monitoring" icon={Activity} label="Monitoring" />
+          {isAdmin && <NavItem to="/monitoring" icon={Activity} label="Monitoring" />}
           <NavItem to="/projects" icon={FolderKanban} label="Business Services" />
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-1 px-2 py-4">

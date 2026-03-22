@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthStore, useCredentialStore } from "@/store/useAuthStore";
+import type { AppRole } from "@/store/useAuthStore";
 import amplifyConfig from "@/config/amplify";
 import { ErrorMessage } from "@/types/types";
 
@@ -31,6 +32,7 @@ export function UserNewPasswordForm({
   const setUser = useAuthStore((state) => state.setUser);
   const setCredential = useCredentialStore((state) => state.setCredential);
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
+  const setRoles = useAuthStore((state) => state.setRoles);
 
   const onSubmit = async (event: React.SyntheticEvent) => {
     event.preventDefault();
@@ -58,8 +60,10 @@ export function UserNewPasswordForm({
     try {
       const result = await confirmSignIn({ challengeResponse: newPassword });
       console.log(result);
-      const { credentials } = await fetchAuthSession();
+      const { credentials, tokens } = await fetchAuthSession();
       setCredential(credentials);
+      const groups = (tokens?.idToken?.payload["cognito:groups"] as AppRole[]) ?? [];
+      setRoles(groups);
       const user = await getCurrentUser();
       setUser(user.username);
       setIsAuthenticated(true);

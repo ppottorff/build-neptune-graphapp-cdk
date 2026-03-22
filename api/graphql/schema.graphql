@@ -118,7 +118,10 @@ input AddAccountInput {
 
 ############################### Mutations ###############################
 type Mutation {
-  insertData(input: InsertDataInput!): InsertDataResult @aws_cognito_user_pools
-  addProjectAccount(input: AddAccountInput!): Account @aws_cognito_user_pools
-  deleteProjectAccount(accountId: String!): InsertDataResult @aws_cognito_user_pools
+  insertData(input: InsertDataInput!): InsertDataResult
+    @aws_auth(cognito_groups: ["Admin", "Editor"])
+  addProjectAccount(input: AddAccountInput!): Account
+    @aws_auth(cognito_groups: ["Admin", "Editor"])
+  deleteProjectAccount(accountId: String!): InsertDataResult
+    @aws_auth(cognito_groups: ["Admin"])
 }

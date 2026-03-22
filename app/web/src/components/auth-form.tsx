@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ErrorMessage } from "@/types/types";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthStore, useCredentialStore } from "@/store/useAuthStore";
+import type { AppRole } from "@/store/useAuthStore";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -35,6 +36,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
   const setSignInStep = useAuthStore((state) => state.setSignInStep);
   const setCredential = useCredentialStore((state) => state.setCredential);
+  const setRoles = useAuthStore((state) => state.setRoles);
   const navigate = useNavigate();
   const onSubmit = async (event: React.SyntheticEvent) => {
     event.preventDefault();
@@ -63,8 +65,10 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         setUser(username);
         setIsAuthenticated(isSignedIn);
         setSignInStep(nextStep.signInStep);
-        const { credentials } = await fetchAuthSession();
+        const { credentials, tokens } = await fetchAuthSession();
         setCredential(credentials);
+        const groups = (tokens?.idToken?.payload["cognito:groups"] as AppRole[]) ?? [];
+        setRoles(groups);
 
         toast({
           title: "Success",

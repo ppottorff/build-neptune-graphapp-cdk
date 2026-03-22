@@ -120,6 +120,63 @@ export class Cognito extends Construct {
         reason: "No need MFA for sample",
       },
     ]);
+
+    // ─── Cognito Groups (roles) ──────────────────────────────────────
+    const adminGroup = new aws_cognito.CfnUserPoolGroup(this, "AdminGroup", {
+      userPoolId: this.userPool.userPoolId,
+      groupName: "Admin",
+      description: "Full access — can mutate data, manage users, and view monitoring",
+      precedence: 0,
+    });
+
+    new aws_cognito.CfnUserPoolGroup(this, "EditorGroup", {
+      userPoolId: this.userPool.userPoolId,
+      groupName: "Editor",
+      description: "Can add and modify graph data",
+      precedence: 10,
+    });
+
+    new aws_cognito.CfnUserPoolGroup(this, "ViewerGroup", {
+      userPoolId: this.userPool.userPoolId,
+      groupName: "Viewer",
+      description: "Read-only access to dashboards and graph visualization",
+      precedence: 20,
+    });
+
+    // Add the initial admin user to the Admin group
+    const adminGroupMembership = new AwsCustomResource(this, "AdminGroupMembership", {
+      onCreate: {
+        service: "CognitoIdentityServiceProvider",
+        action: "adminAddUserToGroup",
+        parameters: {
+          UserPoolId: this.userPool.userPoolId,
+          Username: props.userName,
+          GroupName: "Admin",
+        },
+        physicalResourceId: PhysicalResourceId.of(
+          `AdminGroupMembership-${props.userName}`
+        ),
+      },
+      onDelete: {
+        service: "CognitoIdentityServiceProvider",
+        action: "adminRemoveUserFromGroup",
+        parameters: {
+          UserPoolId: this.userPool.userPoolId,
+          Username: props.userName,
+          GroupName: "Admin",
+        },
+      },
+      policy: AwsCustomResourcePolicy.fromStatements([
+        new aws_iam.PolicyStatement({
+          actions: [
+            "cognito-idp:AdminAddUserToGroup",
+            "cognito-idp:AdminRemoveUserFromGroup",
+          ],
+          resources: [this.userPool.userPoolArn],
+        }),
+      ]),
+    });
+    adminGroupMembership.node.addDependency(adminGroup);
   }
 }
 
