@@ -9,7 +9,6 @@ import {
   LogOut,
   Activity,
   FolderKanban,
-  MessageSquareHeart,
 } from "lucide-react";
 
 import {
@@ -67,7 +66,6 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
           <NavItem to="/graph" icon={ScatterChart} label="Graph Visualization" />
           <NavItem to="/monitoring" icon={Activity} label="Monitoring" />
           <NavItem to="/projects" icon={FolderKanban} label="Business Services" />
-          <NavItem to="/feedback" icon={MessageSquareHeart} label="Feedback" />
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-1 px-2 py-4">
           <TooltipProvider>

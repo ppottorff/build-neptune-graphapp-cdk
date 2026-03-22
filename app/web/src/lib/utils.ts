@@ -1,5 +1,5 @@
-import { getGraph, getProfile, getRelationName, askGraph, getEntityProperties, getEntityEdges, searchEntities, searchProjects, getProjectAccounts, getFeedback } from "@/api/appsync/query";
-import { addProjectAccountMutation, deleteProjectAccountMutation, submitFeedbackMutation, updateFeedbackMutation } from "@/api/appsync/mutation";
+import { getGraph, getProfile, getRelationName, askGraph, getEntityProperties, getEntityEdges, searchEntities, searchProjects, getProjectAccounts } from "@/api/appsync/query";
+import { addProjectAccountMutation, deleteProjectAccountMutation } from "@/api/appsync/mutation";
 import {
   GetGraphQuery,
   GetRelationNameQuery,
@@ -12,9 +12,6 @@ import {
   GetProjectAccountsQuery,
   AddProjectAccountMutation,
   DeleteProjectAccountMutation,
-  GetFeedbackQuery,
-  SubmitFeedbackMutation,
-  UpdateFeedbackMutation,
 } from "@/types/types";
 import { GraphQLResult, generateClient } from "aws-amplify/api";
 import { type ClassValue, clsx } from "clsx";
@@ -143,37 +140,4 @@ export const mutateDeleteProjectAccount = async (accountId: string) => {
   })) as GraphQLResult<DeleteProjectAccountMutation>;
 };
 
-export const queryGetFeedback = async (submittedBy: string) => {
-  return (await generateClient().graphql({
-    query: getFeedback,
-    variables: { submittedBy },
-  })) as GraphQLResult<GetFeedbackQuery>;
-};
 
-export const mutateSubmitFeedback = async (input: {
-  submittedBy: string;
-  presentation: number;
-  vendor: number;
-  presenter: number;
-  venue: number;
-  comments?: string;
-}) => {
-  return (await generateClient().graphql({
-    query: submitFeedbackMutation,
-    variables: { input },
-  })) as GraphQLResult<SubmitFeedbackMutation>;
-};
-
-export const mutateUpdateFeedback = async (input: {
-  id: string;
-  presentation: number;
-  vendor: number;
-  presenter: number;
-  venue: number;
-  comments?: string;
-}) => {
-  return (await generateClient().graphql({
-    query: updateFeedbackMutation,
-    variables: { input },
-  })) as GraphQLResult<UpdateFeedbackMutation>;
-};

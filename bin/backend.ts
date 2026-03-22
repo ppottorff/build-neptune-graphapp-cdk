@@ -57,7 +57,7 @@ const apiStack = new ApiStack(app, `${appName}-ApiStack`, {
   vpc: neptuneNetwork.vpc,
   cluster: neptuneNetwork.cluster,
   clusterRole: neptuneNetwork.neptuneRole,
-  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges", "searchProjects", "getProjectAccounts", "addProjectAccount", "deleteProjectAccount", "getFeedback", "submitFeedback", "updateFeedback"],
+  graphqlFieldName: ["getGraph", "getProfile", "getRelationName", "insertData", "askGraph", "searchEntities", "getEntityProperties", "getEntityEdges", "searchProjects", "getProjectAccounts", "addProjectAccount", "deleteProjectAccount"],
   s3Uri: deployConfig.s3Uri,
   env,
 });

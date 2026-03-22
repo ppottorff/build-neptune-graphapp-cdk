@@ -157,26 +157,4 @@ export type DeleteProjectAccountMutation = {
   deleteProjectAccount: { result: string };
 };
 
-export interface Feedback {
-  id: string;
-  submittedBy: string;
-  presentation: number;
-  vendor: number;
-  presenter: number;
-  venue: number;
-  comments?: string;
-  createdAt: string;
-  updatedAt?: string;
-}
 
-export type GetFeedbackQuery = {
-  getFeedback: Feedback[];
-};
-
-export type SubmitFeedbackMutation = {
-  submitFeedback: Feedback;
-};
-
-export type UpdateFeedbackMutation = {
-  updateFeedback: Feedback;
-};
