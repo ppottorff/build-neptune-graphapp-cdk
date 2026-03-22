@@ -76,12 +76,12 @@ export function AlarmStatusGrid({ alarms, loading }: AlarmStatusGridProps) {
       {loading ? (
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-32 rounded" />
+            <Skeleton key={i} className="h-7 w-32 rounded" style={{ animationDelay: `${i * 50}ms` }} />
           ))}
         </div>
       ) : alarms.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No alarms found.
+        <p className="text-xs text-muted-foreground italic">
+          No alarms configured for this resource.
         </p>
       ) : (
         <div className="flex flex-wrap gap-1.5">

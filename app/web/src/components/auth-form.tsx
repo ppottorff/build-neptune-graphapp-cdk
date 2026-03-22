@@ -139,13 +139,15 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid gap-2 ">
           <Label htmlFor="email" className="text-left">
-            Username/Email
+            Email Address
           </Label>
           <Input
             id="user"
-            placeholder="Username or your email"
+            placeholder="you@example.com"
+            type="email"
             required={true}
             autoCapitalize="none"
+            autoComplete="email"
             autoCorrect="off"
             disabled={isLoading}
             ref={refUser}
@@ -178,7 +180,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         </div>
 
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
+          <span className="bg-white px-2 text-muted-foreground">
             Or forgot password with
           </span>
         </div>

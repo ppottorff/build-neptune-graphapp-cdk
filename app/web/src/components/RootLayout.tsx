@@ -88,7 +88,7 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
           <NavItem to="/settings" icon={Settings} label="Settings" />
         </nav>
       </aside>
-      <main className="grid flex-1 pl-14 items-start">{children}</main>
+      <main className="grid flex-1 pl-14 items-start animate-fade-in">{children}</main>
     </div>
   );
 };

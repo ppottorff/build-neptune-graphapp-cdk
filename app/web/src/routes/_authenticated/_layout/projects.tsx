@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderOpen, Search } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -118,13 +118,24 @@ function ProjectsPage() {
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
+                <Skeleton key={i} className="h-10 w-full" style={{ animationDelay: `${i * 75}ms` }} />
               ))}
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <FolderOpen className="h-10 w-10 mb-2 opacity-40" />
-              <p>No business services found</p>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground animate-fade-in">
+              {searchValue ? (
+                <>
+                  <Search className="h-8 w-8 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No matches for "{searchValue}"</p>
+                  <p className="text-xs mt-1 opacity-60">Try adjusting your search term or clearing the filter</p>
+                </>
+              ) : (
+                <>
+                  <FolderOpen className="h-8 w-8 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No business services registered</p>
+                  <p className="text-xs mt-1 opacity-60">Business services will appear here once Project_Data vertices exist in Neptune</p>
+                </>
+              )}
             </div>
           ) : (
             <>

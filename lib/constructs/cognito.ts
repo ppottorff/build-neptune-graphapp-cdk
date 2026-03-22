@@ -43,12 +43,11 @@ export class Cognito extends Construct {
     this.userPool = new aws_cognito.UserPool(this, "userpool", {
       userPoolName: `${id}-app-userpool`,
       signInAliases: {
-        username: true,
         email: true,
       },
       accountRecovery: aws_cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: RemovalPolicy.DESTROY,
-      selfSignUpEnabled: false,
+      selfSignUpEnabled: true,
       // advancedSecurityMode is deprecated. Use StandardThreatProtectionMode and CustomThreatProtectionMode instead.
       standardThreatProtectionMode: aws_cognito.StandardThreatProtectionMode.FULL_FUNCTION,
       // customThreatProtectionMode: aws_cognito.CustomThreatProtectionMode.ENABLED, // Uncomment and configure as needed

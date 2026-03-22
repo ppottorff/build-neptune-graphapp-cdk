@@ -98,10 +98,11 @@ export function MetricChart({
     <Skeleton className="w-full rounded" style={{ height }} />
   ) : chartData.length === 0 ? (
           <div
-            className="flex items-center justify-center text-xs text-muted-foreground"
+            className="flex flex-col items-center justify-center text-xs text-muted-foreground"
             style={{ height }}
           >
-            No data available
+            <span>No data available</span>
+            <span className="mt-1 opacity-50 text-[10px]">Metric data will appear once CloudWatch begins reporting</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={height}>
