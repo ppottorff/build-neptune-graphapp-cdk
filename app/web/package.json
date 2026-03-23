@@ -47,7 +47,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
-    "@tanstack/router-devtools": "^1.166.11",
+    "@tanstack/react-router-devtools": "^1.166.11",
     "@tanstack/router-vite-plugin": "^1.166.18",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^20.12.7",

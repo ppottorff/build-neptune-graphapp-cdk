@@ -1,6 +1,6 @@
 import { AuthStore, useAuthStore } from "@/store/useAuthStore";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Signin } from "./_auth/signin";
 
 interface RouterContext {
