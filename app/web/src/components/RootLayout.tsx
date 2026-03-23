@@ -75,14 +75,13 @@ export const MainLayout = ({ children }: { children: ReactNode }) => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link
+                <button
                   onClick={() => submitSignOut()}
-                  href="/signin"
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground hover:bg-sidebar-foreground/5 md:h-8 md:w-8"
                 >
                   <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   <span className="sr-only">Sign out</span>
-                </Link>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right">Sign out</TooltipContent>
             </Tooltip>
