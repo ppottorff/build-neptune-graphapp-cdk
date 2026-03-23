@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { fetchAuthSession } from "aws-amplify/auth";
+import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import type { AppRole } from "@/store/useAuthStore";
 
 // src/routes/_authenticated.tsx
@@ -17,6 +17,11 @@ export const Route = createFileRoute("/_authenticated")({
         // Restore roles from the JWT on reload
         const groups = (session.tokens.idToken?.payload["cognito:groups"] as AppRole[]) ?? [];
         context.auth.setRoles(groups);
+        // Restore username on reload
+        try {
+          const { username } = await getCurrentUser();
+          context.auth.setUser(username);
+        } catch { /* non-critical */ }
         return;
       }
     } catch {

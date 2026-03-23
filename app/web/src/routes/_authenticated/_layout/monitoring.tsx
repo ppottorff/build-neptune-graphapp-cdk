@@ -14,7 +14,9 @@ import {
   Play,
   Square,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,6 +47,7 @@ import {
   describeInstances,
   describeNeptuneClusters,
 } from "@/lib/aws-clients";
+
 
 export const Route = createFileRoute("/_authenticated/_layout/monitoring")({
   component: Monitoring,
@@ -732,15 +735,20 @@ function Monitoring() {
       </Card>
 
       {/* ── Row 2: All Metrics (Lambda + Neptune) ── */}
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Activity className="h-4 w-4" />
-            CloudWatch Metrics
-            <span className="text-xs font-normal text-muted-foreground">— last 6 hours</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-4 pt-2">
+      <Collapsible defaultOpen={false}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-2 pt-4 px-4 cursor-pointer select-none group">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                <Activity className="h-4 w-4" />
+                CloudWatch Metrics
+                <span className="text-xs font-normal text-muted-foreground">— last 6 hours</span>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="grid gap-4 p-4 pt-2">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <MetricChart
               title="Lambda Invocations"
@@ -785,32 +793,74 @@ function Monitoring() {
               bare
             />
           </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* ── Row 3: Cloud Dependencies (AWS Health + GitHub side-by-side) ── */}
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Cloud className="h-4 w-4" />
-            Cloud Dependencies
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => { awsHealth.refresh(); fetchGitHubStatus(); }}
-            disabled={awsHealth.loading || ghLoading}
-          >
-            {(awsHealth.loading || ghLoading) ? (
-              <Icons.spinner className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1 h-3 w-3" />
-            )}
-            Refresh
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-4 pt-2 lg:grid-cols-[3fr_1fr]">
+      <Collapsible defaultOpen={false}>
+        {(() => {
+          // Compute summary for collapsed badge
+          const awsOk = awsHealth.statuses.filter(s => s.health === "operational").length;
+          const awsTotal = awsHealth.statuses.length;
+          const awsBad = awsTotal - awsOk;
+          const ghStatuses = Object.values(ghComponents);
+          const ghOk = ghStatuses.filter(s => s === "operational").length;
+          const ghTotal = ghStatuses.length;
+          const ghBad = ghTotal - ghOk;
+          const allOk = awsBad === 0 && ghBad === 0 && awsTotal > 0;
+          const anyIssue = awsBad > 0 || ghBad > 0;
+          return (
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between">
+            <CollapsibleTrigger asChild>
+              <CardTitle className="flex items-center gap-2 text-sm cursor-pointer select-none group">
+                <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                <Cloud className="h-4 w-4" />
+                Cloud Dependencies
+                {/* Collapsed health summary — hidden when open */}
+                <span className="flex items-center gap-1.5 ml-2 group-data-[state=open]:hidden">
+                  {(awsHealth.loading || ghLoading) ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  ) : allOk ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs font-normal text-muted-foreground">All systems operational</span>
+                    </>
+                  ) : anyIssue ? (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {awsBad > 0 && `${awsBad} AWS`}
+                        {awsBad > 0 && ghBad > 0 && ", "}
+                        {ghBad > 0 && `${ghBad} GitHub`}
+                        {" "}issue{(awsBad + ghBad) !== 1 ? "s" : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs font-normal text-muted-foreground">No data</span>
+                  )}
+                </span>
+              </CardTitle>
+            </CollapsibleTrigger>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => { awsHealth.refresh(); fetchGitHubStatus(); }}
+              disabled={awsHealth.loading || ghLoading}
+            >
+              {(awsHealth.loading || ghLoading) ? (
+                <Icons.spinner className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-3 w-3" />
+              )}
+              Refresh
+            </Button>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="grid gap-4 p-4 pt-2 lg:grid-cols-[3fr_1fr]">
           {/* AWS Health */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -913,8 +963,12 @@ function Monitoring() {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+          );
+        })()}
+      </Collapsible>
     </main>
   );
 }

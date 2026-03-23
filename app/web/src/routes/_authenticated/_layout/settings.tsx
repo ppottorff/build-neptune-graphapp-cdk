@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Moon, Sun, Monitor, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Moon, Sun, Monitor, Check, User, Shield } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -8,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTheme } from "@/components/theme-provider";
+import { useAuthStore } from "@/store/useAuthStore";
+import { fetchUserAttributes, fetchAuthSession } from "aws-amplify/auth";
 
 export const Route = createFileRoute("/_authenticated/_layout/settings")({
   component: Settings,
@@ -36,6 +39,25 @@ const THEME_OPTIONS = [
 
 function Settings() {
   const { theme, setTheme, syncing } = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const roles = useAuthStore((s) => s.roles);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const attrs = await fetchUserAttributes();
+        if (attrs.email) { setEmail(attrs.email); return; }
+      } catch { /* fall through to token */ }
+      // Fallback: read email from the ID token
+      try {
+        const session = await fetchAuthSession();
+        const tokenEmail = session.tokens?.idToken?.payload?.email as string | undefined;
+        if (tokenEmail) { setEmail(tokenEmail); return; }
+      } catch { /* ignore */ }
+      setEmail(null);
+    })();
+  }, []);
 
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0">
@@ -84,6 +106,44 @@ function Settings() {
                 </button>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4" />
+            User Identity
+          </CardTitle>
+          <CardDescription>Your user details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-3 text-sm">
+            <div>
+              <span className="text-xs text-muted-foreground">Username</span>
+              <p className="font-medium truncate">{user || "—"}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Email</span>
+              <p className="font-medium truncate">{email || "—"}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Groups</span>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {roles.length > 0 ? roles.map((role) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary"
+                  >
+                    <Shield className="h-3 w-3" />
+                    {role}
+                  </span>
+                )) : (
+                  <span className="text-xs text-muted-foreground italic">No groups assigned</span>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
