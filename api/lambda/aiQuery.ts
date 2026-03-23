@@ -1,4 +1,8 @@
 import { Handler } from "aws-lambda";
+
+// See queryGraph.ts — force gremlin to use ws npm package, not Node 22 built-in WebSocket.
+delete (globalThis as any).WebSocket;
+
 import * as gremlin from "gremlin";
 import { getUrlAndHeaders } from "gremlin-aws-sigv4/lib/utils";
 

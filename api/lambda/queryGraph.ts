@@ -1,5 +1,11 @@
 import { Handler } from "aws-lambda";
 
+// Node 22+ defines a global WebSocket via undici. gremlin-aws-sigv4 injects
+// SigV4 headers through the ws-npm API; if gremlin picks up the built-in
+// WebSocket instead, auth headers are dropped and Neptune returns non-101.
+// Removing the global forces gremlin to use the bundled ws npm package.
+delete (globalThis as any).WebSocket;
+
 import * as gremlin from "gremlin";
 import { getUrlAndHeaders } from "gremlin-aws-sigv4/lib/utils";
 
